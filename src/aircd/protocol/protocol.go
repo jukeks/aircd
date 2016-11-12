@@ -28,7 +28,7 @@ type IrcMessage interface {
     Serialize() string
 }
 
-
+/* -------------------------------------------------------------------------- */
 type PingMessage struct {
     Token string
 }
@@ -41,6 +41,7 @@ func (m PingMessage) Serialize() string {
     return fmt.Sprintf("PING :%s", m.Token)
 }
 
+/* -------------------------------------------------------------------------- */
 type PongMessage struct {
     Token string
 }
@@ -53,7 +54,7 @@ func (m PongMessage) Serialize() string {
     return fmt.Sprintf("PONG :%s", m.Token)
 }
 
-
+/* -------------------------------------------------------------------------- */
 type UnknownMessage struct {
     Message string
 }
@@ -66,6 +67,7 @@ func (m UnknownMessage) Serialize() string {
     return m.Message
 }
 
+/* -------------------------------------------------------------------------- */
 type NickMessage struct {
     Nick string
 }
@@ -78,7 +80,7 @@ func (m NickMessage) Serialize() string {
     return fmt.Sprintf("NICK %s", m.Nick)
 }
 
-
+/* -------------------------------------------------------------------------- */
 type UserMessage struct {
     Username string
     Realname string
@@ -93,7 +95,7 @@ func (m UserMessage) Serialize() string {
     return ""
 }
 
-
+/* -------------------------------------------------------------------------- */
 type PrivateMessage struct {
     Target string
     Message string
@@ -107,6 +109,7 @@ func (m PrivateMessage) Serialize() string {
     return fmt.Sprintf("PRIVMSG %s :%s", m.Target, m.Message)
 }
 
+/* -------------------------------------------------------------------------- */
 type NumericMessage struct {
     Source string
     Code int
@@ -123,7 +126,7 @@ func (m NumericMessage) Serialize() string {
                        m.Message)
 }
 
-
+/* -------------------------------------------------------------------------- */
 func ParseMessage(message string) (IrcMessage) {
     split := strings.SplitN(message, " ", 2)
     switch command := split[0]; command {
