@@ -48,7 +48,7 @@ func (user *User) serve() {
             return
         }
 
-        user.server.handle_message(user, message)
+        user.handle_message(message)
     }
 }
 
@@ -78,9 +78,8 @@ func (user *User) handle_hostname() {
     user.hostname = remote
 }
 
-func (user *User) send(message protocol.IrcMessage) {
-    buff := fmt.Sprintf("%s\r\n", message.Serialize())
-
+func (user *User) send(message string) {
+    buff := fmt.Sprintf("%s\r\n", message)
     sent := 0
     for sent < len(buff) {
         wrote, err :=  fmt.Fprintf(user.conn, buff[sent:])
@@ -93,5 +92,45 @@ func (user *User) send(message protocol.IrcMessage) {
         sent += wrote
     }
 
-    log.Printf("Sent to %s: %s", user.nick, message.Serialize())
+    log.Printf("Sent to %s: %s", user.nick, message)
+}
+
+func (user *User) send_message(message protocol.IrcMessage) {
+    user.send(message.Serialize())
+}
+
+func (user *User) send_motd() {
+    user.send(fmt.Sprintf(":%s 375 %s :- %s Message of the day - ",
+                          user.server.id, user.nick, user.server.id))
+
+    for _, line := range user.server.get_motd() {
+        user.send(fmt.Sprintf(":%s 372 %s :- %s", user.server.id, user.nick, line))
+    }
+
+    user.send(fmt.Sprintf(":%s 376 %s :End of /MOTD command.", user.server.id, user.nick))
+}
+
+func (user *User) handle_message(message protocol.IrcMessage) {
+    switch message.GetType() {
+    case protocol.PONG:
+        user.lastPong = time.Now()
+    case protocol.NICK:
+        msg := message.(protocol.NickMessage)
+        user.server.handle_nick_change(user, msg.Nick)
+    case protocol.USER:
+        msg := message.(protocol.UserMessage)
+        user.realname = msg.Realname
+        user.username = msg.Username
+        log.Printf("%s is %s!%s@%s", user.realname, user.nick, user.username,
+                   user.hostname)
+
+        user.send_motd()
+        user.send_message(protocol.PingMessage{"12345"})
+
+    case protocol.QUIT:
+        user.conn.Close()
+        user.server.remove_user(user)
+        log.Printf("%s has quit.", user.nick)
+    default:
+    }
 }

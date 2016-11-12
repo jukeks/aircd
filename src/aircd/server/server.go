@@ -2,7 +2,6 @@ package main
 
 import (
     "sync"
-    "time"
     "log"
     "aircd/protocol"
 )
@@ -32,7 +31,7 @@ func (server *Server) handle_nick_change(user *User, nick string) {
         log.Printf("Nick %s already in use", nick)
         msg := protocol.NumericMessage{server.id, 433, nick,
                                        "Nick name is already in use."}
-        user.send(msg)
+        user.send_message(msg)
         return
     }
 
@@ -68,27 +67,12 @@ func (server *Server) remove_user(user *User) {
     }
 }
 
-func (server *Server) handle_message(user *User, message protocol.IrcMessage) {
-    switch message.GetType() {
-    case protocol.PONG:
-        user.lastPong = time.Now()
-    case protocol.NICK:
-        msg := message.(protocol.NickMessage)
-        server.handle_nick_change(user, msg.Nick)
-    case protocol.USER:
-        msg := message.(protocol.UserMessage)
-        user.realname = msg.Realname
-        user.username = msg.Username
-        log.Printf("%s is %s!%s@%s", user.realname, user.nick, user.username,
-                   user.hostname)
-
-        user.send(protocol.PingMessage{"12345"})
-    case protocol.QUIT:
-        user.conn.Close()
-        server.remove_user(user)
-        log.Printf("%s has quit.", user.nick)
-    default:
+func (server *Server) get_motd() []string {
+    return []string{
+        "moi moi",
+        "terve terve",
     }
 }
+
 
 
