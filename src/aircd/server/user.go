@@ -1,21 +1,14 @@
 package main
 
 import (
-    "net"
-    "bufio"
-    "strings"
     "time"
     "log"
-    "errors"
+    "net"
     "fmt"
     "aircd/protocol"
 )
 
 type User struct {
-    server *Server
-    conn net.Conn
-    reader *bufio.Reader
-
     nick string
     username string
     realname string
@@ -23,14 +16,16 @@ type User struct {
 
     lastPong time.Time
     registered bool
+
+    server *Server
+    conn *IrcConnection
 }
 
 func NewUser(server *Server, conn net.Conn) *User {
     u := new(User)
     u.server = server
-    u.conn = conn
-    u.reader = bufio.NewReader(conn)
     u.lastPong = time.Now()
+    u.conn = NewIrcConnection(u, conn)
 
     return u
 }
@@ -39,89 +34,29 @@ func (user *User) hostmask() string {
     return fmt.Sprintf("%s!%s@%s", user.nick, user.username, user.hostname)
 }
 
-func (user *User) serve() {
-    defer user.conn.Close()
-
-    user.handle_hostname()
-
-    for {
-        message, err := user.read_message()
-        if err != nil {
-            log.Printf("%s read failed: %v", user.nick, err)
-            user.server.remove_user(user)
-            return
-        }
-
-        user.handle_message(message)
-    }
-}
-
-func (user *User) read_message() (protocol.IrcMessage, error) {
-    line, err := user.reader.ReadString('\n')
-
-    if err != nil || len(line) == 0 {
-        if len(line) == 0 {
-            return nil, errors.New("Empty line")
-        }
-
-        return nil, err
-    }
-
-    line = line[:len(line)-2]
-
-    log.Printf("User %s sent: %s", user.nick, line)
-
-    return protocol.ParseMessage(line), nil
-}
-
-func (user *User) handle_hostname() {
-    split := strings.Split(user.conn.RemoteAddr().String(), ":")
-    remote := split[0]
-
-    names, _ := net.LookupAddr(remote)
-    if len(names) > 0 {
-        remote = names[0]
-    }
-
-    user.hostname = remote
-}
-
-func (user *User) send(message string) {
-    buff := fmt.Sprintf("%s\r\n", message)
-    sent := 0
-    for sent < len(buff) {
-        wrote, err :=  fmt.Fprintf(user.conn, buff[sent:])
-        if err != nil || wrote == 0 {
-            log.Printf("Error writing socket %v", err)
-            user.conn.Close()
-            return
-        }
-
-        sent += wrote
-    }
-
-    log.Printf("Sent to %s: %s", user.nick, message)
+func (user *User) Close() {
+    user.conn.Close()
+    user.server.remove_user(user)
 }
 
 func (user *User) send_message(message protocol.IrcMessage) {
-    user.send(message.Serialize())
+    user.conn.Send(message.Serialize())
 }
 
-func (user *User) send_targeted_message(target string,
-                                        message protocol.IrcMessage) {
-    user.send(fmt.Sprintf(":%s %s", target, message.Serialize()))
+func (user *User) send_message_from(from string, message protocol.IrcMessage) {
+    user.conn.Send(fmt.Sprintf(":%s %s", from, message.Serialize()))
 }
 
 func (user *User) send_motd() {
-    user.send(fmt.Sprintf(":%s 375 %s :- %s Message of the day - ",
+    user.conn.Send(fmt.Sprintf(":%s 375 %s :- %s Message of the day - ",
                           user.server.id, user.nick, user.server.id))
 
     for _, line := range user.server.get_motd() {
-        user.send(fmt.Sprintf(":%s 372 %s :- %s",
+        user.conn.Send(fmt.Sprintf(":%s 372 %s :- %s",
                               user.server.id, user.nick, line))
     }
 
-    user.send(fmt.Sprintf(":%s 376 %s :End of /MOTD command.",
+    user.conn.Send(fmt.Sprintf(":%s 376 %s :End of /MOTD command.",
                           user.server.id, user.nick))
 }
 
@@ -132,20 +67,20 @@ func (user *User) send_users(users []string, channel string) {
     buff := ""
     for _, u := range users {
         if len(template) + len(buff) + len(u) + 1 > 510 {
-            user.send(fmt.Sprintf("%s%s", template, buff))
+            user.conn.Send(fmt.Sprintf("%s%s", template, buff))
             buff = ""
         }
 
         buff = fmt.Sprintf("%s %s", u, buff)
     }
 
-    user.send(fmt.Sprintf("%s%s", template, buff))
+    user.conn.Send(fmt.Sprintf("%s%s", template, buff))
 
-    user.send(fmt.Sprintf(":%s 366 %s :End of /NAMES list",
+    user.conn.Send(fmt.Sprintf(":%s 366 %s :End of /NAMES list",
                           user.server.id, user.nick))
 }
 
-func (user *User) handle_message(message protocol.IrcMessage) {
+func (user *User) Handle_message(message protocol.IrcMessage) {
     switch message.GetType() {
     case protocol.PONG:
         user.lastPong = time.Now()
@@ -166,10 +101,9 @@ func (user *User) handle_message(message protocol.IrcMessage) {
         user.server.handle_part(user, msg)
     case protocol.PRIVATE:
         msg := message.(protocol.PrivateMessage)
-        user.server.handle_message(user, msg)
+        user.server.handle_private_message(user, msg)
     case protocol.QUIT:
-        user.conn.Close()
-        user.server.remove_user(user)
+        user.Close()
         log.Printf("%s has quit.", user.nick)
     default:
     }

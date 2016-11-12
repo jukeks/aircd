@@ -63,7 +63,7 @@ func (server *Server) handle_join(joinedUser *User,
     server.mutex.Unlock()
 
     for _, channel_user := range users {
-        channel_user.send_targeted_message(joinedUser.hostmask(), message)
+        channel_user.send_message_from(joinedUser.hostmask(), message)
     }
 
     joinedUser.send_users(user_names, message.Target)
@@ -83,11 +83,11 @@ func (server *Server) handle_part(partedUser *User,
     server.mutex.Unlock()
 
     for _, channel_user := range users {
-        channel_user.send_targeted_message(partedUser.hostmask(), message)
+        channel_user.send_message_from(partedUser.hostmask(), message)
     }
 }
 
-func (server *Server) handle_message(sendingUser *User,
+func (server *Server) handle_private_message(sendingUser *User,
                                      message protocol.PrivateMessage) {
     server.mutex.Lock()
     channel := server.get_channel(message.Target)
@@ -104,7 +104,7 @@ func (server *Server) handle_message(sendingUser *User,
             continue
         }
 
-        channel_user.send_targeted_message(sendingUser.hostmask(), message)
+        channel_user.send_message_from(sendingUser.hostmask(), message)
     }
 }
 
@@ -126,6 +126,10 @@ func (server *Server) remove_user(user *User) {
             log.Printf("Server has %d users", len(server.users))
             return
         }
+    }
+
+    for _, c := range server.channels {
+        c.remove_user(user)
     }
 }
 

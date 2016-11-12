@@ -30,6 +30,6 @@ func main() {
         }
 
         user := NewUser(&server, conn)
-        go user.serve()
+        go user.conn.Serve()
     }
 }
