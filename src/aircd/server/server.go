@@ -40,17 +40,72 @@ func (server *Server) handle_nick_change(user *User, nick string) {
         log.Printf("New user: %s", nick)
         server.add_user(user)
         user.registered = true
+        user.send_motd()
+        user.send_message(protocol.PingMessage{"12345"})
     } else {
         log.Printf("%s changed nick to %s", user.nick, nick)
         user.nick = nick
     }
 }
 
-func (server *Server) handle_join(user *User, message protocol.JoinMessage) {
-    user.send_targeted_message(user.hostmask(), message)
+func (server *Server) handle_join(joinedUser *User,
+                                  message protocol.JoinMessage) {
+    server.mutex.Lock()
+    channel := server.get_channel(message.Target)
+    if channel == nil {
+        channel = server.add_channel(message.Target)
+    }
 
-    users := server.get_channel_users(message.Target)
-    user.send_users(users, message.Target)
+    channel.add_user(joinedUser)
+    users := channel.get_users()
+    user_names := channel.get_user_names()
+
+    server.mutex.Unlock()
+
+    for _, channel_user := range users {
+        channel_user.send_targeted_message(joinedUser.hostmask(), message)
+    }
+
+    joinedUser.send_users(user_names, message.Target)
+}
+
+func (server *Server) handle_part(partedUser *User,
+                                  message protocol.PartMessage) {
+    server.mutex.Lock()
+    channel := server.get_channel(message.Target)
+    if channel == nil {
+        server.mutex.Unlock()
+        return
+    }
+
+    users := channel.get_users()
+    channel.remove_user(partedUser)
+    server.mutex.Unlock()
+
+    for _, channel_user := range users {
+        channel_user.send_targeted_message(partedUser.hostmask(), message)
+    }
+}
+
+func (server *Server) handle_message(sendingUser *User,
+                                     message protocol.PrivateMessage) {
+    server.mutex.Lock()
+    channel := server.get_channel(message.Target)
+    if channel == nil {
+        server.mutex.Unlock()
+        return
+    }
+
+    users := channel.get_users()
+    server.mutex.Unlock()
+
+    for _, channel_user := range users {
+        if channel_user == sendingUser {
+            continue
+        }
+
+        channel_user.send_targeted_message(sendingUser.hostmask(), message)
+    }
 }
 
 func (server *Server) add_user(user *User) {
@@ -74,17 +129,21 @@ func (server *Server) remove_user(user *User) {
     }
 }
 
-func (server *Server) get_channel_users(channel string) []string {
-    server.mutex.Lock()
-    defer server.mutex.Unlock()
-
+func (server *Server) get_channel(name string) *Channel {
     for _, c := range server.channels {
-        if c.name == channel {
-            return c.get_users()
+        if c.name == name {
+            return c
         }
     }
 
-    return []string{}
+    return nil
+}
+
+func (server *Server) add_channel(name string,) *Channel {
+    c := NewChannel(name)
+    server.channels = append(server.channels, c)
+
+    return c
 }
 
 func (server *Server) get_motd() []string {

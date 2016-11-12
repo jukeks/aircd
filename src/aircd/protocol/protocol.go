@@ -123,6 +123,20 @@ func (m JoinMessage) Serialize() string {
 }
 
 /* -------------------------------------------------------------------------- */
+type PartMessage struct {
+    Target string
+}
+
+func (m PartMessage) GetType() MessageType {
+    return PART
+}
+
+func (m PartMessage) Serialize() string {
+    return fmt.Sprintf("PART :%s", m.Target)
+}
+
+
+/* -------------------------------------------------------------------------- */
 type NumericMessage struct {
     Source string
     Code int
@@ -162,6 +176,8 @@ func ParseMessage(message string) (IrcMessage) {
             return PrivateMessage{split[1], split[2][1:]}
         case "JOIN":
             return JoinMessage{split[1]}
+        case "PART":
+            return PartMessage{split[1]}
         default:
             return UnknownMessage{message}
     }

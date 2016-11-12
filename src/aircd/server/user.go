@@ -107,7 +107,8 @@ func (user *User) send_message(message protocol.IrcMessage) {
     user.send(message.Serialize())
 }
 
-func (user *User) send_targeted_message(target string, message protocol.IrcMessage) {
+func (user *User) send_targeted_message(target string,
+                                        message protocol.IrcMessage) {
     user.send(fmt.Sprintf(":%s %s", target, message.Serialize()))
 }
 
@@ -116,14 +117,17 @@ func (user *User) send_motd() {
                           user.server.id, user.nick, user.server.id))
 
     for _, line := range user.server.get_motd() {
-        user.send(fmt.Sprintf(":%s 372 %s :- %s", user.server.id, user.nick, line))
+        user.send(fmt.Sprintf(":%s 372 %s :- %s",
+                              user.server.id, user.nick, line))
     }
 
-    user.send(fmt.Sprintf(":%s 376 %s :End of /MOTD command.", user.server.id, user.nick))
+    user.send(fmt.Sprintf(":%s 376 %s :End of /MOTD command.",
+                          user.server.id, user.nick))
 }
 
 func (user *User) send_users(users []string, channel string) {
-    template := fmt.Sprintf(":%s 353 %s @ %s :", user.server.id, user.nick, channel)
+    template := fmt.Sprintf(":%s 353 %s @ %s :",
+                            user.server.id, user.nick, channel)
 
     buff := ""
     for _, u := range users {
@@ -132,12 +136,13 @@ func (user *User) send_users(users []string, channel string) {
             buff = ""
         }
 
-        buff = fmt.Sprintf("%s %s", buff, user)
+        buff = fmt.Sprintf("%s %s", u, buff)
     }
 
     user.send(fmt.Sprintf("%s%s", template, buff))
 
-    user.send(fmt.Sprintf(":%s 366 %s :End of /NAMES list", user.server.id, user.nick))
+    user.send(fmt.Sprintf(":%s 366 %s :End of /NAMES list",
+                          user.server.id, user.nick))
 }
 
 func (user *User) handle_message(message protocol.IrcMessage) {
@@ -151,14 +156,17 @@ func (user *User) handle_message(message protocol.IrcMessage) {
         msg := message.(protocol.UserMessage)
         user.realname = msg.Realname
         user.username = msg.Username
-        log.Printf("%s is %s!%s@%s", user.realname, user.nick, user.username,
-                   user.hostname)
-
-        user.send_motd()
-        user.send_message(protocol.PingMessage{"12345"})
+        log.Printf("%s is %s!%s@%s",
+                   user.realname, user.nick, user.username, user.hostname)
     case protocol.JOIN:
         msg := message.(protocol.JoinMessage)
         user.server.handle_join(user, msg)
+    case protocol.PART:
+        msg := message.(protocol.PartMessage)
+        user.server.handle_part(user, msg)
+    case protocol.PRIVATE:
+        msg := message.(protocol.PrivateMessage)
+        user.server.handle_message(user, msg)
     case protocol.QUIT:
         user.conn.Close()
         user.server.remove_user(user)
