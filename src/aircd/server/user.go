@@ -4,6 +4,9 @@ import (
     "net"
     "strings"
     "time"
+    "log"
+    "fmt"
+    "aircd/protocol"
 )
 
 type User struct {
@@ -37,4 +40,22 @@ func (user *User) handle_hostname() {
     }
 
     user.hostname = remote
+}
+
+func (user *User) send(message protocol.IrcMessage) {
+    buff := fmt.Sprintf("%s\r\n", message.Serialize())
+
+    sent := 0
+    for sent < len(buff) {
+        wrote, err :=  fmt.Fprintf(user.conn, buff[sent:])
+        if err != nil || wrote == 0 {
+            log.Printf("Error writing socket %v", err)
+            user.conn.Close()
+            return
+        }
+
+        sent += wrote
+    }
+
+    log.Printf("Sent to %s: %s", user.nick, message.Serialize())
 }
