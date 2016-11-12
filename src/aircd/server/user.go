@@ -2,9 +2,11 @@ package main
 
 import (
     "net"
+    "bufio"
     "strings"
     "time"
     "log"
+    "errors"
     "fmt"
     "aircd/protocol"
 )
@@ -12,6 +14,7 @@ import (
 type User struct {
     server *Server
     conn net.Conn
+    reader *bufio.Reader
 
     nick string
     username string
@@ -22,12 +25,45 @@ type User struct {
     registered bool
 }
 
-func NewUser(conn net.Conn) *User {
+func NewUser(server *Server, conn net.Conn) *User {
     u := new(User)
+    u.server = server
     u.conn = conn
+    u.reader = bufio.NewReader(conn)
     u.lastPong = time.Now()
 
     return u
+}
+
+func (user *User) serve() {
+    defer user.conn.Close()
+
+    user.handle_hostname()
+
+    for {
+        message, err := user.read_message()
+        if err != nil {
+            log.Printf("%s read failed: %v", user.nick, err)
+            user.server.remove_user(user)
+            return
+        }
+
+        user.server.handle_message(user, message)
+    }
+}
+
+func (user *User) read_message() (protocol.IrcMessage, error) {
+    line, err := user.reader.ReadString('\n')
+
+    if err != nil || len(line) == 0 {
+        if len(line) == 0 {
+            return nil, errors.New("Empty line")
+        }
+
+        return nil, err
+    }
+
+    return protocol.ParseMessage(line[:len(line)-2]), nil
 }
 
 func (user *User) handle_hostname() {
