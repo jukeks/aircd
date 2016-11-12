@@ -35,6 +35,10 @@ func NewUser(server *Server, conn net.Conn) *User {
     return u
 }
 
+func (user *User) hostmask() string {
+    return fmt.Sprintf("%s!%s@%s", user.nick, user.username, user.hostname)
+}
+
 func (user *User) serve() {
     defer user.conn.Close()
 
@@ -63,7 +67,11 @@ func (user *User) read_message() (protocol.IrcMessage, error) {
         return nil, err
     }
 
-    return protocol.ParseMessage(line[:len(line)-2]), nil
+    line = line[:len(line)-2]
+
+    log.Printf("User %s sent: %s", user.nick, line)
+
+    return protocol.ParseMessage(line), nil
 }
 
 func (user *User) handle_hostname() {
@@ -99,6 +107,10 @@ func (user *User) send_message(message protocol.IrcMessage) {
     user.send(message.Serialize())
 }
 
+func (user *User) send_targeted_message(target string, message protocol.IrcMessage) {
+    user.send(fmt.Sprintf(":%s %s", target, message.Serialize()))
+}
+
 func (user *User) send_motd() {
     user.send(fmt.Sprintf(":%s 375 %s :- %s Message of the day - ",
                           user.server.id, user.nick, user.server.id))
@@ -108,6 +120,24 @@ func (user *User) send_motd() {
     }
 
     user.send(fmt.Sprintf(":%s 376 %s :End of /MOTD command.", user.server.id, user.nick))
+}
+
+func (user *User) send_users(users []string, channel string) {
+    template := fmt.Sprintf(":%s 353 %s @ %s :", user.server.id, user.nick, channel)
+
+    buff := ""
+    for _, u := range users {
+        if len(template) + len(buff) + len(u) + 1 > 510 {
+            user.send(fmt.Sprintf("%s%s", template, buff))
+            buff = ""
+        }
+
+        buff = fmt.Sprintf("%s %s", buff, user)
+    }
+
+    user.send(fmt.Sprintf("%s%s", template, buff))
+
+    user.send(fmt.Sprintf(":%s 366 %s :End of /NAMES list", user.server.id, user.nick))
 }
 
 func (user *User) handle_message(message protocol.IrcMessage) {
@@ -126,7 +156,9 @@ func (user *User) handle_message(message protocol.IrcMessage) {
 
         user.send_motd()
         user.send_message(protocol.PingMessage{"12345"})
-
+    case protocol.JOIN:
+        msg := message.(protocol.JoinMessage)
+        user.server.handle_join(user, msg)
     case protocol.QUIT:
         user.conn.Close()
         user.server.remove_user(user)

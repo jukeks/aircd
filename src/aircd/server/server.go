@@ -46,6 +46,13 @@ func (server *Server) handle_nick_change(user *User, nick string) {
     }
 }
 
+func (server *Server) handle_join(user *User, message protocol.JoinMessage) {
+    user.send_targeted_message(user.hostmask(), message)
+
+    users := server.get_channel_users(message.Target)
+    user.send_users(users, message.Target)
+}
+
 func (server *Server) add_user(user *User) {
     server.users = append(server.users, user)
 
@@ -65,6 +72,19 @@ func (server *Server) remove_user(user *User) {
             return
         }
     }
+}
+
+func (server *Server) get_channel_users(channel string) []string {
+    server.mutex.Lock()
+    defer server.mutex.Unlock()
+
+    for _, c := range server.channels {
+        if c.name == channel {
+            return c.get_users()
+        }
+    }
+
+    return []string{}
 }
 
 func (server *Server) get_motd() []string {
