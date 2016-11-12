@@ -51,6 +51,8 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 func (server *Server) handle_join(joinedUser *User,
                                   message protocol.JoinMessage) {
     server.mutex.Lock()
+    defer server.mutex.Unlock()
+
     channel := server.get_channel(message.Target)
     if channel == nil {
         channel = server.add_channel(message.Target)
@@ -59,8 +61,6 @@ func (server *Server) handle_join(joinedUser *User,
     channel.add_user(joinedUser)
     users := channel.get_users()
     user_names := channel.get_user_names()
-
-    server.mutex.Unlock()
 
     for _, channel_user := range users {
         channel_user.send_message_from(joinedUser.hostmask(), message)
@@ -72,6 +72,8 @@ func (server *Server) handle_join(joinedUser *User,
 func (server *Server) handle_part(partedUser *User,
                                   message protocol.PartMessage) {
     server.mutex.Lock()
+    defer server.mutex.Unlock()
+
     channel := server.get_channel(message.Target)
     if channel == nil {
         server.mutex.Unlock()
@@ -80,7 +82,6 @@ func (server *Server) handle_part(partedUser *User,
 
     users := channel.get_users()
     channel.remove_user(partedUser)
-    server.mutex.Unlock()
 
     for _, channel_user := range users {
         channel_user.send_message_from(partedUser.hostmask(), message)
@@ -90,16 +91,14 @@ func (server *Server) handle_part(partedUser *User,
 func (server *Server) handle_private_message(sendingUser *User,
                                      message protocol.PrivateMessage) {
     server.mutex.Lock()
+    defer server.mutex.Unlock()
+
     channel := server.get_channel(message.Target)
     if channel == nil {
-        server.mutex.Unlock()
         return
     }
 
-    users := channel.get_users()
-    server.mutex.Unlock()
-
-    for _, channel_user := range users {
+    for _, channel_user := range channel.get_users() {
         if channel_user == sendingUser {
             continue
         }
@@ -118,18 +117,18 @@ func (server *Server) remove_user(user *User) {
     server.mutex.Lock()
     defer server.mutex.Unlock()
 
+    for _, c := range server.channels {
+        c.remove_user(user)
+    }
+
     for i, i_u := range server.users {
         if i_u.nick == user.nick {
             a := server.users
             a[i] = a[len(a)-1]
             server.users = a[:len(a)-1]
             log.Printf("Server has %d users", len(server.users))
-            return
+            break
         }
-    }
-
-    for _, c := range server.channels {
-        c.remove_user(user)
     }
 }
 

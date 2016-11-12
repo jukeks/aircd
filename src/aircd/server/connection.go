@@ -5,8 +5,10 @@ import (
     "strings"
     "bufio"
     "log"
+    "sync"
     "errors"
     "fmt"
+    "time"
     "aircd/protocol"
 )
 
@@ -14,6 +16,9 @@ type IrcConnection struct {
     user *User
     conn net.Conn
     reader *bufio.Reader
+
+    mutex sync.Mutex
+    closed bool
 
     outgoing chan string 
     quit chan bool
@@ -25,6 +30,7 @@ func NewIrcConnection(user *User, conn net.Conn) *IrcConnection {
     c.user = user
     c.conn = conn
     c.reader = bufio.NewReader(conn)
+    c.mutex = sync.Mutex{}
 
     c.outgoing = make(chan string, 100)
     c.quit = make(chan bool)
@@ -45,8 +51,15 @@ func (conn *IrcConnection) Get_hostname() string {
 }
 
 func (conn *IrcConnection) Close() {
-    conn.conn.Close()
-    conn.quit <- true
+    conn.mutex.Lock()
+    defer conn.mutex.Unlock()
+
+    if !conn.closed {
+        conn.closed = true
+
+        conn.conn.Close()
+        conn.quit <- true
+    }
 }
 
 
@@ -76,12 +89,8 @@ func (conn *IrcConnection) writer_routine() {
     for {
         select {
         case msg := <- conn.outgoing:
-            // XXX timeout
             conn.write(msg)
         case <- conn.quit:
-            close(conn.outgoing)
-            close(conn.quit)
-            for range conn.outgoing {}
             return
         }
     }
@@ -90,6 +99,9 @@ func (conn *IrcConnection) writer_routine() {
 func (conn *IrcConnection) write(message string) {
     buff := fmt.Sprintf("%s\r\n", message)
     sent := 0
+
+    conn.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
     for sent < len(buff) {
         wrote, err :=  fmt.Fprintf(conn.conn, buff[sent:])
         if err != nil || wrote == 0 {

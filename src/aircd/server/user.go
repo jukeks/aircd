@@ -35,8 +35,8 @@ func (user *User) hostmask() string {
 }
 
 func (user *User) Close() {
-    user.conn.Close()
     user.server.remove_user(user)
+    user.conn.Close()
 }
 
 func (user *User) send_message(message protocol.IrcMessage) {

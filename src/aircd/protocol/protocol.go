@@ -135,6 +135,18 @@ func (m PartMessage) Serialize() string {
     return fmt.Sprintf("PART :%s", m.Target)
 }
 
+/* -------------------------------------------------------------------------- */
+type QuitMessage struct {
+    Message string
+}
+
+func (m QuitMessage) GetType() MessageType {
+    return QUIT
+}
+
+func (m QuitMessage) Serialize() string {
+    return fmt.Sprintf("QUIT :%s", m.Message)
+}
 
 /* -------------------------------------------------------------------------- */
 type NumericMessage struct {
@@ -178,6 +190,8 @@ func ParseMessage(message string) (IrcMessage) {
             return JoinMessage{split[1]}
         case "PART":
             return PartMessage{split[1]}
+        case "QUIT":
+            return QuitMessage{split[1][1:]}
         default:
             return UnknownMessage{message}
     }
