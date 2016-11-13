@@ -20,13 +20,13 @@ type IrcConnection struct {
 	mutex  sync.Mutex
 	closed bool
 
-	incoming chan ServerMessage
+	incoming chan ClientAction
 	outgoing chan string
 	quit     chan bool
 }
 
 func NewIrcConnection(user *User, conn net.Conn,
-	incoming chan ServerMessage) *IrcConnection {
+	incoming chan ClientAction) *IrcConnection {
 	c := new(IrcConnection)
 
 	c.user = user
@@ -81,11 +81,11 @@ func (conn *IrcConnection) Serve() {
 		message, err := conn.read_message()
 		if err != nil {
 			log.Printf("%s read failed: %v", conn.user.nick, err)
-			conn.incoming <- ServerMessage{conn.user, nil}
+			conn.incoming <- ClientAction{conn.user, nil}
 			return
 		}
 
-		conn.incoming <- ServerMessage{conn.user, message}
+		conn.incoming <- ClientAction{conn.user, message}
 	}
 }
 
@@ -120,7 +120,7 @@ func (conn *IrcConnection) write(message string) {
 		wrote, err := fmt.Fprintf(conn.conn, buff[sent:])
 		if err != nil || wrote == 0 {
 			log.Printf("Error writing socket %v", err)
-			conn.incoming <- ServerMessage{conn.user, nil}
+			conn.incoming <- ClientAction{conn.user, nil}
 			return
 		}
 

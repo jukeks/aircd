@@ -11,7 +11,7 @@ type Server struct {
 	id       string
 	channels []*Channel
 	users    []*User
-	incoming chan ServerMessage
+	incoming chan ClientAction
 }
 
 func NewServer(id string) *Server {
@@ -19,12 +19,12 @@ func NewServer(id string) *Server {
 	s.id = id
 	s.channels = []*Channel{}
 	s.users = []*User{}
-	s.incoming = make(chan ServerMessage, 1000)
+	s.incoming = make(chan ClientAction, 1000)
 
 	return s
 }
 
-type ServerMessage struct {
+type ClientAction struct {
 	user    *User
 	message protocol.IrcMessage
 }
@@ -71,7 +71,7 @@ func (server *Server) serve_users(quit chan bool) {
 	}
 }
 
-func (server *Server) handle_message(action ServerMessage) {
+func (server *Server) handle_message(action ClientAction) {
 	message := action.message
 	user := action.user
 

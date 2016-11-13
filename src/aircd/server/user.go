@@ -20,7 +20,7 @@ type User struct {
 	conn   *IrcConnection
 }
 
-func NewUser(server *Server, conn net.Conn, incoming chan ServerMessage) *User {
+func NewUser(server *Server, conn net.Conn, incoming chan ClientAction) *User {
 	u := new(User)
 	u.server = server
 	u.lastPong = time.Now()
