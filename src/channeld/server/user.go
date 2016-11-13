@@ -1,7 +1,7 @@
 package main
 
 import (
-	"aircd/protocol"
+	"channeld/protocol"
 	"fmt"
 	"net"
 	"time"
