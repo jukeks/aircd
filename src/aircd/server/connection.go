@@ -20,11 +20,13 @@ type IrcConnection struct {
 	mutex  sync.Mutex
 	closed bool
 
+	incoming chan ServerMessage
 	outgoing chan string
 	quit     chan bool
 }
 
-func NewIrcConnection(user *User, conn net.Conn) *IrcConnection {
+func NewIrcConnection(user *User, conn net.Conn,
+	incoming chan ServerMessage) *IrcConnection {
 	c := new(IrcConnection)
 
 	c.user = user
@@ -32,8 +34,9 @@ func NewIrcConnection(user *User, conn net.Conn) *IrcConnection {
 	c.reader = bufio.NewReader(conn)
 	c.mutex = sync.Mutex{}
 
+	c.incoming = incoming
 	c.outgoing = make(chan string, 1000)
-	c.quit = make(chan bool)
+	c.quit = make(chan bool, 2)
 
 	return c
 }
@@ -59,24 +62,30 @@ func (conn *IrcConnection) Close() {
 
 		conn.conn.Close()
 		conn.quit <- true
+		conn.quit <- true
 	}
 }
 
 func (conn *IrcConnection) Serve() {
-	defer conn.user.Close()
-
 	go conn.writer_routine()
 
 	conn.user.hostname = conn.Get_hostname()
 
 	for {
+		select {
+		case <-conn.quit:
+			return
+		default:
+		}
+
 		message, err := conn.read_message()
 		if err != nil {
 			log.Printf("%s read failed: %v", conn.user.nick, err)
+			conn.incoming <- ServerMessage{conn.user, nil}
 			return
 		}
 
-		conn.user.Handle_message(message)
+		conn.incoming <- ServerMessage{conn.user, message}
 	}
 }
 
@@ -111,7 +120,7 @@ func (conn *IrcConnection) write(message string) {
 		wrote, err := fmt.Fprintf(conn.conn, buff[sent:])
 		if err != nil || wrote == 0 {
 			log.Printf("Error writing socket %v", err)
-			conn.user.Close()
+			conn.incoming <- ServerMessage{conn.user, nil}
 			return
 		}
 

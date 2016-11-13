@@ -3,7 +3,6 @@ package main
 import (
 	"aircd/protocol"
 	"fmt"
-	"log"
 	"net"
 	"time"
 )
@@ -21,11 +20,11 @@ type User struct {
 	conn   *IrcConnection
 }
 
-func NewUser(server *Server, conn net.Conn) *User {
+func NewUser(server *Server, conn net.Conn, incoming chan ServerMessage) *User {
 	u := new(User)
 	u.server = server
 	u.lastPong = time.Now()
-	u.conn = NewIrcConnection(u, conn)
+	u.conn = NewIrcConnection(u, conn, incoming)
 
 	return u
 }
@@ -35,7 +34,6 @@ func (user *User) hostmask() string {
 }
 
 func (user *User) Close() {
-	user.server.remove_user(user)
 	user.conn.Close()
 }
 
@@ -78,34 +76,4 @@ func (user *User) send_users(users []string, channel string) {
 
 	user.conn.Send(fmt.Sprintf(":%s 366 %s :End of /NAMES list",
 		user.server.id, user.nick))
-}
-
-func (user *User) Handle_message(message protocol.IrcMessage) {
-	switch message.GetType() {
-	case protocol.PONG:
-		user.lastPong = time.Now()
-	case protocol.NICK:
-		msg := message.(protocol.NickMessage)
-		user.server.handle_nick_change(user, msg.Nick)
-	case protocol.USER:
-		msg := message.(protocol.UserMessage)
-		user.realname = msg.Realname
-		user.username = msg.Username
-		log.Printf("%s is %s!%s@%s",
-			user.realname, user.nick, user.username, user.hostname)
-	case protocol.JOIN:
-		msg := message.(protocol.JoinMessage)
-		user.server.handle_join(user, msg)
-	case protocol.PART:
-		msg := message.(protocol.PartMessage)
-		user.server.handle_part(user, msg)
-	case protocol.PRIVATE:
-		msg := message.(protocol.PrivateMessage)
-		user.server.handle_private_message(user, msg)
-	case protocol.QUIT:
-		user.Close()
-		log.Printf("%s has quit.", user.nick)
-	default:
-		log.Printf("%s sent unknown message: %s", user.nick, message.Serialize())
-	}
 }

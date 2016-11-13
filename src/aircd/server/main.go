@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-	"net"
-	"sync"
 
 	"net/http"
 	_ "net/http/pprof"
@@ -18,18 +16,6 @@ func main() {
 
 	log.Print("Starting server")
 
-	listener, _ := net.Listen("tcp", ":6667")
-
-	server := Server{"example.example.com", []*Channel{}, []*User{}, sync.Mutex{}}
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Printf("Error: %v", err)
-			continue
-		}
-
-		user := NewUser(&server, conn)
-		go user.conn.Serve()
-	}
+	server := NewServer("example.example.com")
+	server.Serve()
 }

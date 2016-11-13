@@ -3,14 +3,51 @@ package main
 import (
 	"aircd/protocol"
 	"log"
-	"sync"
+	"net"
+	"time"
 )
 
 type Server struct {
 	id       string
 	channels []*Channel
 	users    []*User
-	mutex    sync.Mutex
+	incoming chan ServerMessage
+}
+
+func NewServer(id string) *Server {
+	s := new(Server)
+	s.id = id
+	s.channels = []*Channel{}
+	s.users = []*User{}
+	s.incoming = make(chan ServerMessage, 1000)
+
+	return s
+}
+
+type ServerMessage struct {
+	user    *User
+	message protocol.IrcMessage
+}
+
+func (server *Server) Serve() {
+	listener, _ := net.Listen("tcp", ":6667")
+
+	quit := make(chan bool)
+
+	go server.serve_users(quit)
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Printf("Error: %v", err)
+			continue
+		}
+
+		user := NewUser(server, conn, server.incoming)
+		go user.conn.Serve()
+	}
+
+	quit <- true
 }
 
 func (server *Server) nick_available(nick string) bool {
@@ -23,10 +60,57 @@ func (server *Server) nick_available(nick string) bool {
 	return true
 }
 
-func (server *Server) handle_nick_change(user *User, nick string) {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
+func (server *Server) serve_users(quit chan bool) {
+	for {
+		select {
+		case <-quit:
+			return
+		case action := <-server.incoming:
+			server.handle_message(action)
+		}
+	}
+}
 
+func (server *Server) handle_message(action ServerMessage) {
+	message := action.message
+	user := action.user
+
+	if message == nil {
+		server.remove_user(user)
+		log.Printf("%s has quit.", user.nick)
+		return
+	}
+
+	switch message.GetType() {
+	case protocol.PONG:
+		user.lastPong = time.Now()
+	case protocol.NICK:
+		msg := message.(protocol.NickMessage)
+		server.handle_nick_change(user, msg.Nick)
+	case protocol.USER:
+		msg := message.(protocol.UserMessage)
+		user.realname = msg.Realname
+		user.username = msg.Username
+		log.Printf("%s is %s!%s@%s",
+			user.realname, user.nick, user.username, user.hostname)
+	case protocol.JOIN:
+		msg := message.(protocol.JoinMessage)
+		server.handle_join(user, msg)
+	case protocol.PART:
+		msg := message.(protocol.PartMessage)
+		server.handle_part(user, msg)
+	case protocol.PRIVATE:
+		msg := message.(protocol.PrivateMessage)
+		server.handle_private_message(user, msg)
+	case protocol.QUIT:
+		server.remove_user(user)
+		log.Printf("%s has quit.", user.nick)
+	default:
+		log.Printf("%s sent unknown message: %s", user.nick, message.Serialize())
+	}
+}
+
+func (server *Server) handle_nick_change(user *User, nick string) {
 	if !server.nick_available(nick) {
 		log.Printf("Nick %s already in use", nick)
 		msg := protocol.NumericMessage{server.id, 433, nick,
@@ -50,9 +134,6 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 
 func (server *Server) handle_join(joinedUser *User,
 	message protocol.JoinMessage) {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
-
 	channel := server.get_channel(message.Target)
 	if channel == nil {
 		channel = server.add_channel(message.Target)
@@ -71,12 +152,8 @@ func (server *Server) handle_join(joinedUser *User,
 
 func (server *Server) handle_part(partedUser *User,
 	message protocol.PartMessage) {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
-
 	channel := server.get_channel(message.Target)
 	if channel == nil {
-		server.mutex.Unlock()
 		return
 	}
 
@@ -90,9 +167,6 @@ func (server *Server) handle_part(partedUser *User,
 
 func (server *Server) handle_private_message(sendingUser *User,
 	message protocol.PrivateMessage) {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
-
 	channel := server.get_channel(message.Target)
 	if channel == nil {
 		return
@@ -114,8 +188,7 @@ func (server *Server) add_user(user *User) {
 }
 
 func (server *Server) remove_user(user *User) {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
+	user.Close()
 
 	for _, c := range server.channels {
 		c.remove_user(user)
