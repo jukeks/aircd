@@ -32,7 +32,7 @@ func NewIrcConnection(user *User, conn net.Conn) *IrcConnection {
 	c.reader = bufio.NewReader(conn)
 	c.mutex = sync.Mutex{}
 
-	c.outgoing = make(chan string, 100)
+	c.outgoing = make(chan string, 1000)
 	c.quit = make(chan bool)
 
 	return c
@@ -81,7 +81,13 @@ func (conn *IrcConnection) Serve() {
 }
 
 func (conn *IrcConnection) Send(msg string) {
-	conn.outgoing <- msg
+	select {
+	case conn.outgoing <- msg:
+		return
+	default:
+		// queue is full
+		conn.user.Close()
+	}
 }
 
 func (conn *IrcConnection) writer_routine() {
