@@ -9,7 +9,7 @@ import (
 
 type Server struct {
 	id       string
-	channels []*Channel
+	channels map[string]*Channel
 	users    []*User
 	incoming chan ClientAction
 }
@@ -17,7 +17,7 @@ type Server struct {
 func NewServer(id string) *Server {
 	s := new(Server)
 	s.id = id
-	s.channels = []*Channel{}
+	s.channels = make(map[string]*Channel)
 	s.users = []*User{}
 	s.incoming = make(chan ClientAction, 1000)
 
@@ -80,6 +80,20 @@ func is_channel_message(message protocol.IrcMessage) bool {
 	}
 }
 
+func is_private_message(message protocol.IrcMessage) bool {
+	if message.GetType() != protocol.PRIVATE {
+		return false
+	}
+
+	msg := message.(protocol.PrivateMessage)
+	chan_type := msg.Target[0]
+	if chan_type == '#' || chan_type == '!' {
+		return false
+	}
+
+	return true
+}
+
 func (server *Server) handle_message(action ClientAction) {
 	message := action.message
 	user := action.user
@@ -90,12 +104,20 @@ func (server *Server) handle_message(action ClientAction) {
 		return
 	}
 
-	if is_channel_message(message) {
+	if !is_private_message(message) && is_channel_message(message) {
 		server.handle_channel_message(action)
 		return
 	}
 
 	switch message.GetType() {
+	case protocol.PRIVATE:
+		msg := message.(protocol.PrivateMessage)
+		target_user := server.get_user(msg.Target)
+		if user == nil {
+			return
+		}
+
+		target_user.send_message_from(user.hostmask(), action.message)
 	case protocol.PONG:
 		user.lastPong = time.Now()
 	case protocol.NICK:
@@ -176,21 +198,25 @@ func (server *Server) remove_user(user *User) {
 	}
 }
 
-func (server *Server) get_channel(name string) *Channel {
-	for _, c := range server.channels {
-		if c.name == name {
-			return c
+func (server *Server) get_user(name string) *User {
+	for _, user := range server.users {
+		if user.nick == name {
+			return user
 		}
 	}
 
 	return nil
 }
 
+func (server *Server) get_channel(name string) *Channel {
+	return server.channels[name]
+}
+
 func (server *Server) add_channel(name string) *Channel {
 	c := NewChannel(name)
 	go c.Serve()
 
-	server.channels = append(server.channels, c)
+	server.channels[name] = c
 
 	log.Printf("Added new channel: %s", name)
 
