@@ -1,198 +1,198 @@
 package protocol
 
 import (
-    "strings"
-    "fmt"
+	"fmt"
+	"strings"
 )
 
 type MessageType int
 
 const (
-    JOIN MessageType = iota
-    PART
-    QUIT
-    PRIVATE
-    TOPIC
-    TOPIC_REPLY
-    NICK
-    USER
-    PING
-    PONG
-    NUMERIC
+	JOIN MessageType = iota
+	PART
+	QUIT
+	PRIVATE
+	TOPIC
+	TOPIC_REPLY
+	NICK
+	USER
+	PING
+	PONG
+	NUMERIC
 
-    UNKNOWN
+	UNKNOWN
 )
 
 type IrcMessage interface {
-    GetType() MessageType
-    Serialize() string
+	GetType() MessageType
+	Serialize() string
 }
 
 /* -------------------------------------------------------------------------- */
 type PingMessage struct {
-    Token string
+	Token string
 }
 
 func (m PingMessage) GetType() MessageType {
-    return PING
+	return PING
 }
 
 func (m PingMessage) Serialize() string {
-    return fmt.Sprintf("PING :%s", m.Token)
+	return fmt.Sprintf("PING :%s", m.Token)
 }
 
 /* -------------------------------------------------------------------------- */
 type PongMessage struct {
-    Token string
+	Token string
 }
 
 func (m PongMessage) GetType() MessageType {
-    return PONG
+	return PONG
 }
 
 func (m PongMessage) Serialize() string {
-    return fmt.Sprintf("PONG :%s", m.Token)
+	return fmt.Sprintf("PONG :%s", m.Token)
 }
 
 /* -------------------------------------------------------------------------- */
 type UnknownMessage struct {
-    Message string
+	Message string
 }
 
 func (m UnknownMessage) GetType() MessageType {
-    return UNKNOWN
+	return UNKNOWN
 }
 
 func (m UnknownMessage) Serialize() string {
-    return m.Message
+	return m.Message
 }
 
 /* -------------------------------------------------------------------------- */
 type NickMessage struct {
-    Nick string
+	Nick string
 }
 
 func (m NickMessage) GetType() MessageType {
-    return NICK
+	return NICK
 }
 
 func (m NickMessage) Serialize() string {
-    return fmt.Sprintf("NICK %s", m.Nick)
+	return fmt.Sprintf("NICK %s", m.Nick)
 }
 
 /* -------------------------------------------------------------------------- */
 type UserMessage struct {
-    Username string
-    Realname string
-    Hostname string
+	Username string
+	Realname string
+	Hostname string
 }
 
 func (m UserMessage) GetType() MessageType {
-    return USER
+	return USER
 }
 
 func (m UserMessage) Serialize() string {
-    return ""
+	return ""
 }
 
 /* -------------------------------------------------------------------------- */
 type PrivateMessage struct {
-    Target string
-    Message string
+	Target  string
+	Message string
 }
 
 func (m PrivateMessage) GetType() MessageType {
-    return PRIVATE
+	return PRIVATE
 }
 
 func (m PrivateMessage) Serialize() string {
-    return fmt.Sprintf("PRIVMSG %s :%s", m.Target, m.Message)
+	return fmt.Sprintf("PRIVMSG %s :%s", m.Target, m.Message)
 }
 
 /* -------------------------------------------------------------------------- */
 type JoinMessage struct {
-    Target string
+	Target string
 }
 
 func (m JoinMessage) GetType() MessageType {
-    return JOIN
+	return JOIN
 }
 
 func (m JoinMessage) Serialize() string {
-    return fmt.Sprintf("JOIN :%s", m.Target)
+	return fmt.Sprintf("JOIN :%s", m.Target)
 }
 
 /* -------------------------------------------------------------------------- */
 type PartMessage struct {
-    Target string
+	Target string
 }
 
 func (m PartMessage) GetType() MessageType {
-    return PART
+	return PART
 }
 
 func (m PartMessage) Serialize() string {
-    return fmt.Sprintf("PART :%s", m.Target)
+	return fmt.Sprintf("PART :%s", m.Target)
 }
 
 /* -------------------------------------------------------------------------- */
 type QuitMessage struct {
-    Message string
+	Message string
 }
 
 func (m QuitMessage) GetType() MessageType {
-    return QUIT
+	return QUIT
 }
 
 func (m QuitMessage) Serialize() string {
-    return fmt.Sprintf("QUIT :%s", m.Message)
+	return fmt.Sprintf("QUIT :%s", m.Message)
 }
 
 /* -------------------------------------------------------------------------- */
 type NumericMessage struct {
-    Source string
-    Code int
-    Target string
-    Message string
+	Source  string
+	Code    int
+	Target  string
+	Message string
 }
 
 func (m NumericMessage) GetType() MessageType {
-    return PRIVATE
+	return PRIVATE
 }
 
 func (m NumericMessage) Serialize() string {
-    return fmt.Sprintf(":%s %d * %s :%s", m.Source, m.Code, m.Target,
-                       m.Message)
+	return fmt.Sprintf(":%s %d * %s :%s", m.Source, m.Code, m.Target,
+		m.Message)
 }
 
 /* -------------------------------------------------------------------------- */
-func ParseMessage(message string) (IrcMessage) {
-    split := strings.SplitN(message, " ", 2)
-    switch command := split[0]; command {
-        case "PONG":
-            return PongMessage{split[1][1:]}
-        case "NICK":
-            return NickMessage{split[1]}
-        case "USER":
-            split = strings.SplitN(message, " ", 5)
-            if len(split) != 5 {
-                return UnknownMessage{message}
-            }
+func ParseMessage(message string) IrcMessage {
+	split := strings.SplitN(message, " ", 2)
+	switch command := split[0]; command {
+	case "PONG":
+		return PongMessage{split[1][1:]}
+	case "NICK":
+		return NickMessage{split[1]}
+	case "USER":
+		split = strings.SplitN(message, " ", 5)
+		if len(split) != 5 {
+			return UnknownMessage{message}
+		}
 
-            username := split[1]
-            hostname := split[2]
-            realname := split[4][1:]
-            return UserMessage{username, realname, hostname}
-        case "PRIVMSG":
-            split = strings.SplitN(message, " ", 3)
-            return PrivateMessage{split[1], split[2][1:]}
-        case "JOIN":
-            return JoinMessage{split[1]}
-        case "PART":
-            return PartMessage{split[1]}
-        case "QUIT":
-            return QuitMessage{split[1][1:]}
-        default:
-            return UnknownMessage{message}
-    }
+		username := split[1]
+		hostname := split[2]
+		realname := split[4][1:]
+		return UserMessage{username, realname, hostname}
+	case "PRIVMSG":
+		split = strings.SplitN(message, " ", 3)
+		return PrivateMessage{split[1], split[2][1:]}
+	case "JOIN":
+		return JoinMessage{split[1]}
+	case "PART":
+		return PartMessage{split[1]}
+	case "QUIT":
+		return QuitMessage{split[1][1:]}
+	default:
+		return UnknownMessage{message}
+	}
 }

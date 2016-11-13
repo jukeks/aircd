@@ -1,35 +1,35 @@
 package main
 
 import (
-    "net"
-    "sync"
-    "log"
+	"log"
+	"net"
+	"sync"
 
-    _ "net/http/pprof"
-    "net/http"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var logger *log.Logger
 
 func main() {
-    go func() {
-        log.Println(http.ListenAndServe("localhost:6060", nil))
-    }()
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 
-    log.Print("Starting server")
+	log.Print("Starting server")
 
-    listener, _ := net.Listen("tcp", ":6667")
+	listener, _ := net.Listen("tcp", ":6667")
 
-    server := Server{"example.example.com", []*Channel{}, []*User{}, sync.Mutex{}}
+	server := Server{"example.example.com", []*Channel{}, []*User{}, sync.Mutex{}}
 
-    for {
-        conn, err := listener.Accept()
-        if err != nil {
-            log.Printf("Error: %v", err)
-            continue
-        }
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Printf("Error: %v", err)
+			continue
+		}
 
-        user := NewUser(&server, conn)
-        go user.conn.Serve()
-    }
+		user := NewUser(&server, conn)
+		go user.conn.Serve()
+	}
 }
