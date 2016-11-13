@@ -28,6 +28,11 @@ type IrcMessage interface {
 	Serialize() string
 }
 
+type ChannelMessage interface {
+	IrcMessage
+	GetTarget() string
+}
+
 /* -------------------------------------------------------------------------- */
 type PingMessage struct {
 	Token string
@@ -109,6 +114,10 @@ func (m PrivateMessage) Serialize() string {
 	return fmt.Sprintf("PRIVMSG %s :%s", m.Target, m.Message)
 }
 
+func (m PrivateMessage) GetTarget() string {
+	return m.Target
+}
+
 /* -------------------------------------------------------------------------- */
 type JoinMessage struct {
 	Target string
@@ -122,6 +131,10 @@ func (m JoinMessage) Serialize() string {
 	return fmt.Sprintf("JOIN :%s", m.Target)
 }
 
+func (m JoinMessage) GetTarget() string {
+	return m.Target
+}
+
 /* -------------------------------------------------------------------------- */
 type PartMessage struct {
 	Target string
@@ -133,6 +146,10 @@ func (m PartMessage) GetType() MessageType {
 
 func (m PartMessage) Serialize() string {
 	return fmt.Sprintf("PART :%s", m.Target)
+}
+
+func (m PartMessage) GetTarget() string {
+	return m.Target
 }
 
 /* -------------------------------------------------------------------------- */

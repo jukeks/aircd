@@ -71,6 +71,15 @@ func (server *Server) serve_users(quit chan bool) {
 	}
 }
 
+func is_channel_message(message protocol.IrcMessage) bool {
+	switch message.(type) {
+	case protocol.ChannelMessage:
+		return true
+	default:
+		return false
+	}
+}
+
 func (server *Server) handle_message(action ClientAction) {
 	message := action.message
 	user := action.user
@@ -78,6 +87,11 @@ func (server *Server) handle_message(action ClientAction) {
 	if message == nil {
 		server.remove_user(user)
 		log.Printf("%s has quit.", user.nick)
+		return
+	}
+
+	if is_channel_message(message) {
+		server.handle_channel_message(action)
 		return
 	}
 
@@ -93,21 +107,27 @@ func (server *Server) handle_message(action ClientAction) {
 		user.username = msg.Username
 		log.Printf("%s is %s!%s@%s",
 			user.realname, user.nick, user.username, user.hostname)
-	case protocol.JOIN:
-		msg := message.(protocol.JoinMessage)
-		server.handle_join(user, msg)
-	case protocol.PART:
-		msg := message.(protocol.PartMessage)
-		server.handle_part(user, msg)
-	case protocol.PRIVATE:
-		msg := message.(protocol.PrivateMessage)
-		server.handle_private_message(user, msg)
 	case protocol.QUIT:
 		server.remove_user(user)
 		log.Printf("%s has quit.", user.nick)
 	default:
 		log.Printf("%s sent unknown message: %s", user.nick, message.Serialize())
 	}
+}
+
+func (server *Server) handle_channel_message(action ClientAction) {
+	msg := action.message.(protocol.ChannelMessage)
+
+	channel := server.get_channel(msg.GetTarget())
+	if channel == nil && msg.GetType() == protocol.JOIN {
+		channel = server.add_channel(msg.GetTarget())
+	}
+
+	if channel == nil {
+		return
+	}
+
+	channel.incoming <- action
 }
 
 func (server *Server) handle_nick_change(user *User, nick string) {
@@ -129,55 +149,6 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 	} else {
 		log.Printf("%s changed nick to %s", user.nick, nick)
 		user.nick = nick
-	}
-}
-
-func (server *Server) handle_join(joinedUser *User,
-	message protocol.JoinMessage) {
-	channel := server.get_channel(message.Target)
-	if channel == nil {
-		channel = server.add_channel(message.Target)
-	}
-
-	channel.add_user(joinedUser)
-	users := channel.get_users()
-	user_names := channel.get_user_names()
-
-	for _, channel_user := range users {
-		channel_user.send_message_from(joinedUser.hostmask(), message)
-	}
-
-	joinedUser.send_users(user_names, message.Target)
-}
-
-func (server *Server) handle_part(partedUser *User,
-	message protocol.PartMessage) {
-	channel := server.get_channel(message.Target)
-	if channel == nil {
-		return
-	}
-
-	users := channel.get_users()
-	channel.remove_user(partedUser)
-
-	for _, channel_user := range users {
-		channel_user.send_message_from(partedUser.hostmask(), message)
-	}
-}
-
-func (server *Server) handle_private_message(sendingUser *User,
-	message protocol.PrivateMessage) {
-	channel := server.get_channel(message.Target)
-	if channel == nil {
-		return
-	}
-
-	for _, channel_user := range channel.get_users() {
-		if channel_user == sendingUser {
-			continue
-		}
-
-		channel_user.send_message_from(sendingUser.hostmask(), message)
 	}
 }
 
@@ -217,7 +188,11 @@ func (server *Server) get_channel(name string) *Channel {
 
 func (server *Server) add_channel(name string) *Channel {
 	c := NewChannel(name)
+	go c.Serve()
+
 	server.channels = append(server.channels, c)
+
+	log.Printf("Added new channel: %s", name)
 
 	return c
 }
