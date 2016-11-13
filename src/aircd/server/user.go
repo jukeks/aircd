@@ -106,5 +106,6 @@ func (user *User) Handle_message(message protocol.IrcMessage) {
 		user.Close()
 		log.Printf("%s has quit.", user.nick)
 	default:
+		log.Printf("%s sent unknown message: %s", user.nick, message.Serialize())
 	}
 }
