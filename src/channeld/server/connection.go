@@ -1,15 +1,12 @@
 package main
 
 import (
-	"channeld/protocol"
 	"bufio"
-	"errors"
-	"fmt"
+	"channeld/protocol"
 	"log"
 	"net"
 	"strings"
 	"sync"
-	"time"
 )
 
 type IrcConnection struct {
@@ -111,39 +108,22 @@ func (conn *IrcConnection) writer_routine() {
 }
 
 func (conn *IrcConnection) write(message string) {
-	buff := fmt.Sprintf("%s\r\n", message)
-	sent := 0
-
-	conn.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-
-	for sent < len(buff) {
-		wrote, err := fmt.Fprintf(conn.conn, buff[sent:])
-		if err != nil || wrote == 0 {
-			log.Printf("Error writing socket %v", err)
-			conn.incoming <- ClientAction{conn.user, nil}
-			return
-		}
-
-		sent += wrote
+	err := protocol.WriteLine(conn.conn, message)
+	if err != nil {
+		log.Printf("Error writing socket %v", err)
+		conn.incoming <- ClientAction{conn.user, nil}
+		return
 	}
 
 	log.Printf("Sent to %s: %s", conn.user.nick, message)
 }
 
 func (conn *IrcConnection) read_message() (protocol.IrcMessage, error) {
-	line, err := conn.reader.ReadString('\n')
-
-	if err != nil || len(line) == 0 {
-		if len(line) == 0 {
-			return nil, errors.New("Empty line")
-		}
-
+	line, err := protocol.ReadLine(conn.reader)
+	if err != nil {
 		return nil, err
 	}
 
-	line = line[:len(line)-2]
-
 	log.Printf("User %s sent: %s", conn.user.nick, line)
-
 	return protocol.ParseMessage(line), nil
 }

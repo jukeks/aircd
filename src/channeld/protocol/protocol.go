@@ -1,8 +1,12 @@
 package protocol
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"strings"
+	"net"
+	"time"
 )
 
 type MessageType int
@@ -213,3 +217,38 @@ func ParseMessage(message string) IrcMessage {
 		return UnknownMessage{message}
 	}
 }
+
+func WriteLine(conn net.Conn, message string) error {
+	buff := fmt.Sprintf("%s\r\n", message)
+	sent := 0
+
+	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+	for sent < len(buff) {
+		wrote, err := fmt.Fprintf(conn, buff[sent:])
+		if err != nil || wrote == 0 {
+			return err
+		}
+
+		sent += wrote
+	}
+
+	return nil
+}
+
+func ReadLine(reader *bufio.Reader) (string, error) {
+	line, err := reader.ReadString('\n')
+
+	if err != nil || len(line) == 0 {
+		if len(line) == 0 {
+			return line, errors.New("Empty line")
+		}
+
+		return line, err
+	}
+
+	line = line[:len(line)-2]
+	return line, nil
+}
+
+
