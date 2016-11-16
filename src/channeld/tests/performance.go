@@ -101,7 +101,7 @@ func write_10000_lines(started, done chan bool, to string) {
 	<-started
 	log.Printf("Got started")
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1000; i++ {
 		protocol.WriteLine(client.conn,
 			fmt.Sprintf("PRIVMSG %s :ASDFASDFASDFASDFASDFASDF",
 				to))
