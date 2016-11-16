@@ -113,7 +113,7 @@ func (server *Server) handle_message(action ClientAction) {
 	case protocol.PRIVATE:
 		msg := message.(protocol.PrivateMessage)
 		target_user := server.get_user(msg.Target)
-		if user == nil {
+		if target_user == nil {
 			return
 		}
 
