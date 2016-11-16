@@ -92,6 +92,7 @@ func write_10000_lines(started, done chan bool, to string) {
 
 			_, err := protocol.ReadLine(client.reader)
 			if err != nil {
+				<-quit
 				return
 			}
 		}
@@ -103,8 +104,7 @@ func write_10000_lines(started, done chan bool, to string) {
 
 	for i := 0; i < 1000; i++ {
 		protocol.WriteLine(client.conn,
-			fmt.Sprintf("PRIVMSG %s :ASDFASDFASDFASDFASDFASDF",
-				to))
+			fmt.Sprintf("PRIVMSG %s :%s", to, strings.Repeat("A", 480)))
 	}
 
 	protocol.WriteLine(client.conn, "PART #testers")
