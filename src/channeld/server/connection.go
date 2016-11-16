@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 type IrcConnection struct {
@@ -16,6 +17,9 @@ type IrcConnection struct {
 
 	mutex  sync.Mutex
 	closed bool
+
+	messageCounter uint32
+	counterReseted time.Time
 
 	incoming chan ClientAction
 	outgoing chan string
@@ -31,6 +35,8 @@ func NewIrcConnection(user *User, conn net.Conn,
 	c.reader = bufio.NewReader(conn)
 	c.mutex = sync.Mutex{}
 
+	c.counterReseted = time.Now()
+
 	c.incoming = incoming
 	c.outgoing = make(chan string, 1000)
 	c.quit = make(chan bool, 2)
@@ -38,7 +44,7 @@ func NewIrcConnection(user *User, conn net.Conn,
 	return c
 }
 
-func (conn *IrcConnection) Get_hostname() string {
+func (conn *IrcConnection) GetHostname() string {
 	split := strings.Split(conn.conn.RemoteAddr().String(), ":")
 	remote := split[0]
 
@@ -63,10 +69,25 @@ func (conn *IrcConnection) Close() {
 	}
 }
 
-func (conn *IrcConnection) Serve() {
-	go conn.writer_routine()
+func (conn *IrcConnection) checkCounter() bool {
+	conn.messageCounter += 1
 
-	conn.user.hostname = conn.Get_hostname()
+	if conn.messageCounter > 10 {
+		return false
+	}
+
+	if time.Now().After(conn.counterReseted.Add(10 * time.Second)) {
+		conn.messageCounter = 0
+		conn.counterReseted = time.Now()
+	}
+
+	return true
+}
+
+func (conn *IrcConnection) Serve() {
+	go conn.writerRoutine()
+
+	conn.user.hostname = conn.GetHostname()
 
 	for {
 		select {
@@ -78,6 +99,14 @@ func (conn *IrcConnection) Serve() {
 		message, err := conn.read_message()
 		if err != nil {
 			log.Printf("%s read failed: %v", conn.user.nick, err)
+			conn.incoming <- ClientAction{conn.user, nil}
+			return
+		}
+
+		if !conn.checkCounter() {
+			log.Printf("Client flooding %d messages in %s",
+					   conn.messageCounter,
+					   time.Since(conn.counterReseted).String())
 			conn.incoming <- ClientAction{conn.user, nil}
 			return
 		}
@@ -96,7 +125,7 @@ func (conn *IrcConnection) Send(msg string) {
 	}
 }
 
-func (conn *IrcConnection) writer_routine() {
+func (conn *IrcConnection) writerRoutine() {
 	for {
 		select {
 		case msg := <-conn.outgoing:
