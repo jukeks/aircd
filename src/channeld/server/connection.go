@@ -120,7 +120,7 @@ func (conn *IrcConnection) Send(msg string) {
 	case conn.outgoing <- msg:
 		return
 	default:
-		// queue is full
+		log.Printf("Client %s queue is full. Closing.", conn.user.nick)
 		conn.user.Close()
 	}
 }
