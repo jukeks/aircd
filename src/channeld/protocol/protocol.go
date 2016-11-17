@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"strings"
 	"net"
@@ -238,12 +237,7 @@ func WriteLine(conn net.Conn, message string) error {
 
 func ReadLine(reader *bufio.Reader) (string, error) {
 	line, err := reader.ReadString('\n')
-
-	if err != nil || len(line) == 0 {
-		if len(line) == 0 {
-			return line, errors.New("Empty line")
-		}
-
+	if err != nil {
 		return line, err
 	}
 
