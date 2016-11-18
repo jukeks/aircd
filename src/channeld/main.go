@@ -5,6 +5,8 @@ import (
 
 	"net/http"
 	_ "net/http/pprof"
+
+	"channeld/server"
 )
 
 var logger *log.Logger
@@ -16,6 +18,6 @@ func main() {
 
 	log.Print("Starting server")
 
-	server := NewServer("example.example.com")
+	server := server.NewServer("example.example.com")
 	server.Serve()
 }

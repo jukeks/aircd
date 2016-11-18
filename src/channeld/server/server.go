@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"channeld/protocol"
@@ -12,6 +12,7 @@ type Server struct {
 	channels map[string]*Channel
 	users    []*User
 	incoming chan ClientAction
+	quit     chan bool
 }
 
 func NewServer(id string) *Server {
@@ -20,6 +21,7 @@ func NewServer(id string) *Server {
 	s.channels = make(map[string]*Channel)
 	s.users = []*User{}
 	s.incoming = make(chan ClientAction, 1000)
+	s.quit = make(chan bool, 2)
 
 	return s
 }
@@ -29,14 +31,22 @@ type ClientAction struct {
 	message protocol.IrcMessage
 }
 
+func (server *Server) Quit() {
+	server.quit <- true
+}
+
 func (server *Server) Serve() {
 	listener, _ := net.Listen("tcp", ":6667")
 
-	quit := make(chan bool)
-
-	go server.serveUsers(quit)
+	go server.serveUsers()
 
 	for {
+		select {
+		case <-server.quit:
+			return
+		default:
+		}
+
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Printf("Error: %v", err)
@@ -46,8 +56,6 @@ func (server *Server) Serve() {
 		user := NewUser(server.id, conn, server.incoming)
 		go user.conn.Serve()
 	}
-
-	quit <- true
 }
 
 func (server *Server) nickAvailable(nick string) bool {
@@ -60,10 +68,10 @@ func (server *Server) nickAvailable(nick string) bool {
 	return true
 }
 
-func (server *Server) serveUsers(quit chan bool) {
+func (server *Server) serveUsers() {
 	for {
 		select {
-		case <-quit:
+		case <-server.quit:
 			return
 		case action := <-server.incoming:
 			server.handleMessage(action)
