@@ -55,14 +55,14 @@ func handshake(nick string) *Client {
 
 	protocol.WriteLine(conn, fmt.Sprintf("NICK %s", nick))
 	protocol.WriteLine(conn, fmt.Sprintf("USER tester localhost localhost :Teppo"))
-	read_until(reader, "PING")
+	readUntil(reader, "PING")
 	protocol.WriteLine(conn, "JOIN #testers")
-	read_until(reader, "JOIN :#testers")
+	readUntil(reader, "JOIN :#testers")
 
 	return client
 }
 
-func read_until(reader *bufio.Reader, until string) {
+func readUntil(reader *bufio.Reader, until string) {
 	for {
 		line, err := protocol.ReadLine(reader)
 		if err != nil {
@@ -76,7 +76,7 @@ func read_until(reader *bufio.Reader, until string) {
 	}
 }
 
-func read_until_part(n int, done chan bool) {
+func readUntilPart(n int, done chan bool) {
 	client := handshake("tester1")
 
 	go func() {
@@ -114,7 +114,7 @@ func read_until_part(n int, done chan bool) {
 	}()
 }
 
-func write_n_lines(checkpoint1, checkpoint2, done chan bool, name string, n int) {
+func writeNLines(checkpoint1, checkpoint2, done chan bool, name string, n int) {
 	client := handshake(name)
 	defer client.conn.Close()
 
@@ -148,17 +148,17 @@ func write_n_lines(checkpoint1, checkpoint2, done chan bool, name string, n int)
 }
 
 func main() {
-	n := 500
+	n := 200
 
 	done := make(chan bool, n + 1)
 	checkpoint1 := make(chan bool, n)
 	checkpoint2 := make(chan bool, n)
 
-	read_until_part(n, done)
+	readUntilPart(n, done)
 
 	for i := 2; i < n + 2; i++ {
 		func() {
-			go write_n_lines(checkpoint1, checkpoint2, done, fmt.Sprintf("tester%d", i), 5)
+			go writeNLines(checkpoint1, checkpoint2, done, fmt.Sprintf("tester%d", i), 5)
 		}()
 	}
 
