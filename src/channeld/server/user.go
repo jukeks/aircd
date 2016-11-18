@@ -37,24 +37,24 @@ func (user *User) Close() {
 	user.conn.Close()
 }
 
-func (user *User) send_message(message protocol.IrcMessage) {
+func (user *User) sendMessage(message protocol.IrcMessage) {
 	user.conn.Send(message.Serialize())
 }
 
-func (user *User) send_serialized_message(message string) {
+func (user *User) sendSerializedMessage(message string) {
 	user.conn.Send(message)
 }
 
-func get_serialized_message_from(from string,
+func getSerializedMessageFrom(from string,
 	message protocol.IrcMessage) string {
 	return fmt.Sprintf(":%s %s", from, message.Serialize())
 }
 
-func (user *User) send_message_from(from string, message protocol.IrcMessage) {
-	user.conn.Send(get_serialized_message_from(from, message))
+func (user *User) sendMessageFrom(from string, message protocol.IrcMessage) {
+	user.conn.Send(getSerializedMessageFrom(from, message))
 }
 
-func (user *User) send_motd() {
+func (user *User) sendMotd() {
 	user.conn.Send(fmt.Sprintf(":%s 375 %s :- %s Message of the day - ",
 		user.server.id, user.nick, user.server.id))
 
@@ -67,7 +67,7 @@ func (user *User) send_motd() {
 		user.server.id, user.nick))
 }
 
-func (user *User) send_users(users []string, channel string) {
+func (user *User) sendUsers(users []string, channel string) {
 	template := fmt.Sprintf(":%s 353 %s @ %s :",
 		user.server.id, user.nick, channel)
 

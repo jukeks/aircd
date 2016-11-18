@@ -84,34 +84,34 @@ func (channel *Channel) handleJoin(joined_user *User,
 	message protocol.JoinMessage) {
 	channel.addUser(joined_user)
 
-	serialized := get_serialized_message_from(joined_user.hostmask(), message)
+	serialized := getSerializedMessageFrom(joined_user.hostmask(), message)
 	for _, channel_user := range channel.users {
-		channel_user.send_serialized_message(serialized)
+		channel_user.sendSerializedMessage(serialized)
 	}
 
-	joined_user.send_users(channel.getUserNames(), message.Target)
+	joined_user.sendUsers(channel.getUserNames(), message.Target)
 }
 
 func (channel *Channel) handlePart(parted_user *User,
 	message protocol.PartMessage) {
 	channel.removeUser(parted_user)
 
-	serialized := get_serialized_message_from(parted_user.hostmask(), message)
+	serialized := getSerializedMessageFrom(parted_user.hostmask(), message)
 	for _, channel_user := range channel.users {
-		channel_user.send_serialized_message(serialized)
+		channel_user.sendSerializedMessage(serialized)
 	}
 
-	parted_user.send_message_from(parted_user.hostmask(), message)
+	parted_user.sendMessageFrom(parted_user.hostmask(), message)
 }
 
 func (channel *Channel) handlePrivateMessage(sending_user *User,
 	message protocol.PrivateMessage) {
-	serialized := get_serialized_message_from(sending_user.hostmask(), message)
+	serialized := getSerializedMessageFrom(sending_user.hostmask(), message)
 	for _, channel_user := range channel.users {
 		if channel_user == sending_user {
 			continue
 		}
 
-		channel_user.send_serialized_message(serialized)
+		channel_user.sendSerializedMessage(serialized)
 	}
 }

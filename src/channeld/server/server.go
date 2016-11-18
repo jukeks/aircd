@@ -117,7 +117,7 @@ func (server *Server) handle_message(action ClientAction) {
 			return
 		}
 
-		target_user.send_message_from(user.hostmask(), action.message)
+		target_user.sendMessageFrom(user.hostmask(), action.message)
 	case protocol.PONG:
 		user.lastPong = time.Now()
 	case protocol.NICK:
@@ -157,7 +157,7 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 		log.Printf("Nick %s already in use", nick)
 		msg := protocol.NumericMessage{server.id, 433, nick,
 			"Nick name is already in use."}
-		user.send_message(msg)
+		user.sendMessage(msg)
 		return
 	}
 
@@ -166,8 +166,8 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 		log.Printf("New user: %s", nick)
 		server.add_user(user)
 		user.registered = true
-		user.send_motd()
-		user.send_message(protocol.PingMessage{"12345"})
+		user.sendMotd()
+		user.sendMessage(protocol.PingMessage{"12345"})
 	} else {
 		log.Printf("%s changed nick to %s", user.nick, nick)
 		user.nick = nick
