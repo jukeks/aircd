@@ -96,7 +96,7 @@ func (conn *IrcConnection) Serve() {
 		default:
 		}
 
-		message, err := conn.read_message()
+		message, err := conn.readMessage()
 		if err != nil {
 			log.Printf("%s read failed: %v", conn.user.nick, err)
 			conn.incoming <- ClientAction{conn.user, nil}
@@ -147,7 +147,7 @@ func (conn *IrcConnection) write(message string) {
 	log.Printf("Sent to %s: %s", conn.user.nick, message)
 }
 
-func (conn *IrcConnection) read_message() (protocol.IrcMessage, error) {
+func (conn *IrcConnection) readMessage() (protocol.IrcMessage, error) {
 	line, err := protocol.ReadLine(conn.reader)
 	if err != nil {
 		return nil, err
