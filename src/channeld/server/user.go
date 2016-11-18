@@ -41,8 +41,17 @@ func (user *User) send_message(message protocol.IrcMessage) {
 	user.conn.Send(message.Serialize())
 }
 
+func (user *User) send_serialized_message(message string) {
+	user.conn.Send(message)
+}
+
+func get_serialized_message_from(from string,
+	message protocol.IrcMessage) string {
+	return fmt.Sprintf(":%s %s", from, message.Serialize())
+}
+
 func (user *User) send_message_from(from string, message protocol.IrcMessage) {
-	user.conn.Send(fmt.Sprintf(":%s %s", from, message.Serialize()))
+	user.conn.Send(get_serialized_message_from(from, message))
 }
 
 func (user *User) send_motd() {

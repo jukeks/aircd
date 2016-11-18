@@ -80,21 +80,13 @@ func (channel *Channel) get_user_names() []string {
 	return users
 }
 
-func (channel *Channel) get_users() []*User {
-	users := []*User{}
-	for _, u := range channel.users {
-		users = append(users, u)
-	}
-
-	return users
-}
-
 func (channel *Channel) handle_join(joined_user *User,
 	message protocol.JoinMessage) {
 	channel.add_user(joined_user)
 
+	serialized := get_serialized_message_from(joined_user.hostmask(), message)
 	for _, channel_user := range channel.users {
-		channel_user.send_message_from(joined_user.hostmask(), message)
+		channel_user.send_serialized_message(serialized)
 	}
 
 	joined_user.send_users(channel.get_user_names(), message.Target)
@@ -104,8 +96,9 @@ func (channel *Channel) handle_part(parted_user *User,
 	message protocol.PartMessage) {
 	channel.remove_user(parted_user)
 
+	serialized := get_serialized_message_from(parted_user.hostmask(), message)
 	for _, channel_user := range channel.users {
-		channel_user.send_message_from(parted_user.hostmask(), message)
+		channel_user.send_serialized_message(serialized)
 	}
 
 	parted_user.send_message_from(parted_user.hostmask(), message)
@@ -113,11 +106,12 @@ func (channel *Channel) handle_part(parted_user *User,
 
 func (channel *Channel) handle_private_message(sending_user *User,
 	message protocol.PrivateMessage) {
+	serialized := get_serialized_message_from(sending_user.hostmask(), message)
 	for _, channel_user := range channel.users {
 		if channel_user == sending_user {
 			continue
 		}
 
-		channel_user.send_message_from(sending_user.hostmask(), message)
+		channel_user.send_serialized_message(serialized)
 	}
 }
