@@ -43,7 +43,7 @@ func (server *Server) Serve() {
 			continue
 		}
 
-		user := NewUser(server, conn, server.incoming)
+		user := NewUser(server.id, conn, server.incoming)
 		go user.conn.Serve()
 	}
 
@@ -166,7 +166,7 @@ func (server *Server) handleNickChange(user *User, nick string) {
 		log.Printf("New user: %s", nick)
 		server.addUser(user)
 		user.registered = true
-		user.sendMotd()
+		user.sendMotd(server.getMotd())
 		user.sendMessage(protocol.PingMessage{"12345"})
 	} else {
 		log.Printf("%s changed nick to %s", user.nick, nick)

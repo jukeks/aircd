@@ -105,8 +105,8 @@ func (conn *IrcConnection) Serve() {
 
 		if !conn.checkCounter() {
 			log.Printf("Client flooding %d messages in %s",
-					   conn.messageCounter,
-					   time.Since(conn.counterReseted).String())
+				conn.messageCounter,
+				time.Since(conn.counterReseted).String())
 			conn.incoming <- ClientAction{conn.user, nil}
 			return
 		}
