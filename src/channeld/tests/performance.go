@@ -5,10 +5,10 @@ import (
 	"channeld/protocol"
 	"fmt"
 	"log"
-	"net"
-	"time"
-	"strings"
 	"math/rand"
+	"net"
+	"strings"
+	"time"
 )
 
 var logger *log.Logger
@@ -27,7 +27,7 @@ func connect() (net.Conn, error) {
 		conn, err := net.Dial("tcp", "127.0.0.1:6667")
 		if err != nil {
 			log.Printf("Connection failed: %v. Retrying", err)
-			time.Sleep(time.Duration((rand.Int31n(6) +1) * 500) * time.Millisecond)
+			time.Sleep(time.Duration((rand.Int31n(6)+1)*500) * time.Millisecond)
 			continue
 		}
 
@@ -99,7 +99,7 @@ func readUntilPart(n int, done chan bool) {
 
 			if strings.Contains(line, "PART ") {
 				parts += 1
-				if parts % 20 == 0 {
+				if parts%20 == 0 {
 					log.Printf("PART #%d received", parts)
 				}
 			}
@@ -119,8 +119,8 @@ func writeNLines(checkpoint1, checkpoint2, done chan bool, name string, n int) {
 	defer client.conn.Close()
 
 	/*
-	checkpoint1 <- true
-	<-checkpoint2*/
+		checkpoint1 <- true
+		<-checkpoint2*/
 
 	go func() {
 		for i := 0; i < n; i++ {
@@ -150,26 +150,26 @@ func writeNLines(checkpoint1, checkpoint2, done chan bool, name string, n int) {
 func main() {
 	n := 200
 
-	done := make(chan bool, n + 1)
+	done := make(chan bool, n+1)
 	checkpoint1 := make(chan bool, n)
 	checkpoint2 := make(chan bool, n)
 
 	readUntilPart(n, done)
 
-	for i := 2; i < n + 2; i++ {
+	for i := 2; i < n+2; i++ {
 		func() {
 			go writeNLines(checkpoint1, checkpoint2, done, fmt.Sprintf("tester%d", i), 5)
 		}()
 	}
 
 	/*
-	for i := 0; i < n; i++ {
-		<-checkpoint1
-	}
-	log.Printf("Everyone joined")
-	for i := 0; i < n; i++ {
-		checkpoint2 <- true
-	}*/
+		for i := 0; i < n; i++ {
+			<-checkpoint1
+		}
+		log.Printf("Everyone joined")
+		for i := 0; i < n; i++ {
+			checkpoint2 <- true
+		}*/
 	for i := 0; i < n; i++ {
 		<-done
 	}
