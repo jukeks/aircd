@@ -2,6 +2,7 @@ package server
 
 import (
 	"channeld/protocol"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -240,7 +241,12 @@ func (server *Server) addChannel(name string) *Channel {
 
 func (server *Server) getMotd() []string {
 	return []string{
-		"moi moi",
-		"terve terve",
+		fmt.Sprintf("Welcome to %s running", server.id),
+		"     _                   _   _ ",
+		" ___| |_ ___ ___ ___ ___| |_| |",
+		"|  _|   | .'|   |   | -_| | . |",
+		"|___|_|_|__,|_|_|_|_|___|_|___|",
+		"                               ",
+		"version 0.1.0.",
 	}
 }
