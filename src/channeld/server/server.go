@@ -184,7 +184,7 @@ func (server *Server) remove_user(user *User) {
 	user.Close()
 
 	for _, c := range server.channels {
-		c.remove_user(user)
+		c.removeUser(user)
 	}
 
 	for i, i_u := range server.users {

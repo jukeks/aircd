@@ -27,7 +27,7 @@ func (channel *Channel) Serve() {
 	for {
 		select {
 		case action := <-channel.incoming:
-			channel.handle_message(action)
+			channel.handleMessage(action)
 		}
 
 		if len(channel.users) == 0 {
@@ -36,28 +36,28 @@ func (channel *Channel) Serve() {
 	}
 }
 
-func (channel *Channel) handle_message(action ClientAction) {
+func (channel *Channel) handleMessage(action ClientAction) {
 	switch action.message.GetType() {
 	case protocol.PRIVATE:
 		msg := action.message.(protocol.PrivateMessage)
-		channel.handle_private_message(action.user, msg)
+		channel.handlePrivateMessage(action.user, msg)
 	case protocol.JOIN:
 		msg := action.message.(protocol.JoinMessage)
-		channel.handle_join(action.user, msg)
+		channel.handleJoin(action.user, msg)
 	case protocol.PART:
 		msg := action.message.(protocol.PartMessage)
-		channel.handle_part(action.user, msg)
+		channel.handlePart(action.user, msg)
 	default:
 		log.Printf("Channel message not implemented: %v", action)
 	}
 }
 
-func (channel *Channel) add_user(user *User) {
+func (channel *Channel) addUser(user *User) {
 	log.Printf("User %s joined channel %s", user.nick, channel.name)
 	channel.users = append(channel.users, user)
 }
 
-func (channel *Channel) remove_user(user *User) {
+func (channel *Channel) removeUser(user *User) {
 	log.Printf("User %s left channel %s", user.nick, channel.name)
 	for i, i_u := range channel.users {
 		if i_u.nick == user.nick {
@@ -71,7 +71,7 @@ func (channel *Channel) remove_user(user *User) {
 	}
 }
 
-func (channel *Channel) get_user_names() []string {
+func (channel *Channel) getUserNames() []string {
 	users := []string{}
 	for _, u := range channel.users {
 		users = append(users, u.nick)
@@ -80,21 +80,21 @@ func (channel *Channel) get_user_names() []string {
 	return users
 }
 
-func (channel *Channel) handle_join(joined_user *User,
+func (channel *Channel) handleJoin(joined_user *User,
 	message protocol.JoinMessage) {
-	channel.add_user(joined_user)
+	channel.addUser(joined_user)
 
 	serialized := get_serialized_message_from(joined_user.hostmask(), message)
 	for _, channel_user := range channel.users {
 		channel_user.send_serialized_message(serialized)
 	}
 
-	joined_user.send_users(channel.get_user_names(), message.Target)
+	joined_user.send_users(channel.getUserNames(), message.Target)
 }
 
-func (channel *Channel) handle_part(parted_user *User,
+func (channel *Channel) handlePart(parted_user *User,
 	message protocol.PartMessage) {
-	channel.remove_user(parted_user)
+	channel.removeUser(parted_user)
 
 	serialized := get_serialized_message_from(parted_user.hostmask(), message)
 	for _, channel_user := range channel.users {
@@ -104,7 +104,7 @@ func (channel *Channel) handle_part(parted_user *User,
 	parted_user.send_message_from(parted_user.hostmask(), message)
 }
 
-func (channel *Channel) handle_private_message(sending_user *User,
+func (channel *Channel) handlePrivateMessage(sending_user *User,
 	message protocol.PrivateMessage) {
 	serialized := get_serialized_message_from(sending_user.hostmask(), message)
 	for _, channel_user := range channel.users {
