@@ -34,7 +34,7 @@ func (server *Server) Serve() {
 
 	quit := make(chan bool)
 
-	go server.serve_users(quit)
+	go server.serveUsers(quit)
 
 	for {
 		conn, err := listener.Accept()
@@ -50,7 +50,7 @@ func (server *Server) Serve() {
 	quit <- true
 }
 
-func (server *Server) nick_available(nick string) bool {
+func (server *Server) nickAvailable(nick string) bool {
 	for _, user := range server.users {
 		if user.nick == nick {
 			return false
@@ -60,18 +60,18 @@ func (server *Server) nick_available(nick string) bool {
 	return true
 }
 
-func (server *Server) serve_users(quit chan bool) {
+func (server *Server) serveUsers(quit chan bool) {
 	for {
 		select {
 		case <-quit:
 			return
 		case action := <-server.incoming:
-			server.handle_message(action)
+			server.handleMessage(action)
 		}
 	}
 }
 
-func is_channel_message(message protocol.IrcMessage) bool {
+func isChannelMessage(message protocol.IrcMessage) bool {
 	switch message.(type) {
 	case protocol.ChannelMessage:
 		return true
@@ -80,7 +80,7 @@ func is_channel_message(message protocol.IrcMessage) bool {
 	}
 }
 
-func is_private_message(message protocol.IrcMessage) bool {
+func isPrivateMessage(message protocol.IrcMessage) bool {
 	if message.GetType() != protocol.PRIVATE {
 		return false
 	}
@@ -94,25 +94,25 @@ func is_private_message(message protocol.IrcMessage) bool {
 	return true
 }
 
-func (server *Server) handle_message(action ClientAction) {
+func (server *Server) handleMessage(action ClientAction) {
 	message := action.message
 	user := action.user
 
 	if message == nil {
-		server.remove_user(user)
+		server.removeUser(user)
 		log.Printf("%s has quit.", user.nick)
 		return
 	}
 
-	if !is_private_message(message) && is_channel_message(message) {
-		server.handle_channel_message(action)
+	if !isPrivateMessage(message) && isChannelMessage(message) {
+		server.handleChannelMessage(action)
 		return
 	}
 
 	switch message.GetType() {
 	case protocol.PRIVATE:
 		msg := message.(protocol.PrivateMessage)
-		target_user := server.get_user(msg.Target)
+		target_user := server.getUser(msg.Target)
 		if target_user == nil {
 			return
 		}
@@ -122,7 +122,7 @@ func (server *Server) handle_message(action ClientAction) {
 		user.lastPong = time.Now()
 	case protocol.NICK:
 		msg := message.(protocol.NickMessage)
-		server.handle_nick_change(user, msg.Nick)
+		server.handleNickChange(user, msg.Nick)
 	case protocol.USER:
 		msg := message.(protocol.UserMessage)
 		user.realname = msg.Realname
@@ -130,19 +130,19 @@ func (server *Server) handle_message(action ClientAction) {
 		log.Printf("%s is %s!%s@%s",
 			user.realname, user.nick, user.username, user.hostname)
 	case protocol.QUIT:
-		server.remove_user(user)
+		server.removeUser(user)
 		log.Printf("%s has quit.", user.nick)
 	default:
 		log.Printf("%s sent unknown message: %s", user.nick, message.Serialize())
 	}
 }
 
-func (server *Server) handle_channel_message(action ClientAction) {
+func (server *Server) handleChannelMessage(action ClientAction) {
 	msg := action.message.(protocol.ChannelMessage)
 
-	channel := server.get_channel(msg.GetTarget())
+	channel := server.getChannel(msg.GetTarget())
 	if channel == nil && msg.GetType() == protocol.JOIN {
-		channel = server.add_channel(msg.GetTarget())
+		channel = server.addChannel(msg.GetTarget())
 	}
 
 	if channel == nil {
@@ -152,8 +152,8 @@ func (server *Server) handle_channel_message(action ClientAction) {
 	channel.incoming <- action
 }
 
-func (server *Server) handle_nick_change(user *User, nick string) {
-	if !server.nick_available(nick) {
+func (server *Server) handleNickChange(user *User, nick string) {
+	if !server.nickAvailable(nick) {
 		log.Printf("Nick %s already in use", nick)
 		msg := protocol.NumericMessage{server.id, 433, nick,
 			"Nick name is already in use."}
@@ -164,7 +164,7 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 	if !user.registered {
 		user.nick = nick
 		log.Printf("New user: %s", nick)
-		server.add_user(user)
+		server.addUser(user)
 		user.registered = true
 		user.sendMotd()
 		user.sendMessage(protocol.PingMessage{"12345"})
@@ -174,13 +174,13 @@ func (server *Server) handle_nick_change(user *User, nick string) {
 	}
 }
 
-func (server *Server) add_user(user *User) {
+func (server *Server) addUser(user *User) {
 	server.users = append(server.users, user)
 
 	log.Printf("Server has %d users", len(server.users))
 }
 
-func (server *Server) remove_user(user *User) {
+func (server *Server) removeUser(user *User) {
 	user.Close()
 
 	for _, c := range server.channels {
@@ -198,7 +198,7 @@ func (server *Server) remove_user(user *User) {
 	}
 }
 
-func (server *Server) get_user(name string) *User {
+func (server *Server) getUser(name string) *User {
 	for _, user := range server.users {
 		if user.nick == name {
 			return user
@@ -208,11 +208,11 @@ func (server *Server) get_user(name string) *User {
 	return nil
 }
 
-func (server *Server) get_channel(name string) *Channel {
+func (server *Server) getChannel(name string) *Channel {
 	return server.channels[name]
 }
 
-func (server *Server) add_channel(name string) *Channel {
+func (server *Server) addChannel(name string) *Channel {
 	c := NewChannel(name)
 	go c.Serve()
 
@@ -223,7 +223,7 @@ func (server *Server) add_channel(name string) *Channel {
 	return c
 }
 
-func (server *Server) get_motd() []string {
+func (server *Server) getMotd() []string {
 	return []string{
 		"moi moi",
 		"terve terve",

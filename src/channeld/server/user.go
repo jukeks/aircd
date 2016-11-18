@@ -58,7 +58,7 @@ func (user *User) sendMotd() {
 	user.conn.Send(fmt.Sprintf(":%s 375 %s :- %s Message of the day - ",
 		user.server.id, user.nick, user.server.id))
 
-	for _, line := range user.server.get_motd() {
+	for _, line := range user.server.getMotd() {
 		user.conn.Send(fmt.Sprintf(":%s 372 %s :- %s",
 			user.server.id, user.nick, line))
 	}
