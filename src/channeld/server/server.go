@@ -21,7 +21,7 @@ func NewServer(id string) *Server {
 	s.channels = make(map[string]*Channel)
 	s.users = []*User{}
 	s.incoming = make(chan ClientAction, 1000)
-	s.quit = make(chan bool, 2)
+	s.quit = make(chan bool)
 
 	return s
 }
@@ -33,10 +33,12 @@ type ClientAction struct {
 
 func (server *Server) Quit() {
 	server.quit <- true
+	server.quit <- true
 }
 
 func (server *Server) Serve() {
-	listener, _ := net.Listen("tcp", ":6667")
+	addr, _ := net.ResolveTCPAddr("tcp", ":6667")
+	listener, _ := net.ListenTCP("tcp", addr)
 
 	go server.serveUsers()
 
@@ -47,8 +49,13 @@ func (server *Server) Serve() {
 		default:
 		}
 
+		listener.SetDeadline(time.Now().Add(time.Second))
 		conn, err := listener.Accept()
 		if err != nil {
+			if err, ok := err.(*net.OpError); ok && err.Timeout() {
+				continue
+			}
+
 			log.Printf("Error: %v", err)
 			continue
 		}

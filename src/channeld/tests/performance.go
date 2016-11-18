@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"channeld/protocol"
+	"channeld/server"
 	"fmt"
 	"log"
 	"math/rand"
@@ -148,6 +149,9 @@ func writeNLines(checkpoint1, checkpoint2, done chan bool, name string, n int) {
 }
 
 func main() {
+	s := server.NewServer("test.server.example.org")
+	go s.Serve()
+
 	n := 200
 
 	done := make(chan bool, n+1)
@@ -175,4 +179,5 @@ func main() {
 	}
 
 	<-done
+	s.Quit()
 }
