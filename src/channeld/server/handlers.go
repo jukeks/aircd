@@ -65,6 +65,11 @@ func (server *Server) handleMessage(action protocol.ClientAction) {
 	conn := action.Connection
 	user := server.getUserByConn(conn)
 
+	if message == nil && user == nil {
+		// conn has been closed already and user removed
+		return
+	}
+
 	if message == nil {
 		server.removeUser(conn, user)
 		log.Printf("%s has quit.", user.nick)
