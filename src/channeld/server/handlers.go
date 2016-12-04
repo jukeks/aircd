@@ -122,7 +122,7 @@ func (server *Server) handleChannelMessage(user *User,
 		return
 	}
 
-	c.Incoming <- channel.ChannelAction{user.hostmask(), user.nick,
+	c.Incoming <- protocol.ChannelAction{user.hostmask(), user.nick,
 		user.conn, msg}
 }
 
@@ -138,7 +138,7 @@ func (server *Server) handleNickChange(user *User,
 	}
 
 	for _, c := range server.channels {
-		c.Incoming <- channel.ChannelAction{user.hostmask(), user.nick,
+		c.Incoming <- protocol.ChannelAction{user.hostmask(), user.nick,
 			user.conn, message}
 	}
 
@@ -157,7 +157,7 @@ func (server *Server) removeUser(conn *protocol.IrcConnection, user *User,
 	user.close()
 
 	for _, c := range server.channels {
-		c.Incoming <- channel.ChannelAction{user.hostmask(), user.nick,
+		c.Incoming <- protocol.ChannelAction{user.hostmask(), user.nick,
 			user.conn, protocol.QuitMessage{reason}}
 	}
 

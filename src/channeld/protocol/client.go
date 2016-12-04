@@ -9,32 +9,6 @@ import (
 	"time"
 )
 
-type ConnectionInitiationError int
-
-const (
-	NO_ERROR ConnectionInitiationError = iota
-	NICK_IN_USE
-)
-
-type ClientAction struct {
-	Connection *IrcConnection
-	Message    IrcMessage
-}
-
-type ConnectionInitiationAction struct {
-	UserMessage  UserMessage
-	NickMessage  NickMessage
-	Hostname     string
-	Conn         *IrcConnection
-	ResponseChan chan ConnectionInitiationActionResponse
-}
-
-type ConnectionInitiationActionResponse struct {
-	Success bool
-	ErrorCode ConnectionInitiationError
-	Reply IrcMessage
-}
-
 type IrcConnection struct {
 	conn   net.Conn
 	reader *bufio.Reader
@@ -124,62 +98,6 @@ func (conn *IrcConnection) getHostname() string {
 	}
 
 	return remote
-}
-
-func (conn *IrcConnection) handshake(
-	newClients chan ConnectionInitiationAction) bool {
-	hostname := conn.getHostname()
-	var nickMessage NickMessage
-	var userMessage UserMessage
-	nickReceived := false
-	userReceived := false
-	messagesRead := 0
-	nickRetries := 0
-
-	for nickRetries < 3 {
-		for (!nickReceived || !userReceived) && messagesRead < 4 {
-			select {
-			case <-conn.quit:
-				return false
-			default:
-			}
-
-			message, err := conn.readMessage()
-			if err != nil {
-				log.Printf("%v read failed: %v", conn, err)
-				return false
-			}
-			messagesRead += 1
-
-			if message.GetType() == USER {
-				userMessage = message.(UserMessage)
-				userReceived = true
-			} else if message.GetType() == NICK {
-				nickMessage = message.(NickMessage)
-				nickReceived = true
-			}
-		}
-
-		if nickReceived && userReceived {
-			responseChan := make(chan ConnectionInitiationActionResponse, 1)
-
-			newClients <- ConnectionInitiationAction{userMessage, nickMessage,
-				hostname, conn, responseChan}
-			response := <-responseChan
-
-			if !response.Success {
-				conn.write(response.Reply.Serialize())
-				nickReceived = false
-				messagesRead = 0
-				nickRetries += 1
-				continue
-			}
-
-			return true
-		}
-	}
-
-	return false
 }
 
 func (conn *IrcConnection) Serve(newClients chan ConnectionInitiationAction) {

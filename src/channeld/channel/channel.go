@@ -10,17 +10,10 @@ import (
 
 type Channel struct {
 	Name     string
-	Incoming chan ChannelAction
+	Incoming chan protocol.ChannelAction
 
 	mode  string
 	users []*ChannelUser
-}
-
-type ChannelAction struct {
-	OriginHostMask string
-	OriginNick     string
-	OriginConn     *protocol.IrcConnection
-	Message        protocol.IrcMessage
 }
 
 type ChannelUser struct {
@@ -34,7 +27,7 @@ func NewChannel(name string) *Channel {
 	c.Name = name
 	c.users = []*ChannelUser{}
 
-	c.Incoming = make(chan ChannelAction, 1000)
+	c.Incoming = make(chan protocol.ChannelAction, 1000)
 
 	return c
 }
@@ -52,7 +45,7 @@ func (channel *Channel) Serve() {
 	}
 }
 
-func (channel *Channel) handleMessage(action ChannelAction) {
+func (channel *Channel) handleMessage(action protocol.ChannelAction) {
 	switch action.Message.GetType() {
 	case protocol.PRIVATE:
 		msg := action.Message.(protocol.PrivateMessage)
@@ -109,7 +102,7 @@ func (channel *Channel) getUserByNick(nick string) *ChannelUser {
 	return nil
 }
 
-func (channel *Channel) handleJoin(action ChannelAction,
+func (channel *Channel) handleJoin(action protocol.ChannelAction,
 	message protocol.JoinMessage) {
 	newUser := ChannelUser{action.OriginNick, action.OriginHostMask,
 		action.OriginConn}
@@ -125,7 +118,7 @@ func (channel *Channel) handleJoin(action ChannelAction,
 	channel.sendUsers(newUser.hostmask, newUser.conn)
 }
 
-func (channel *Channel) handlePart(action ChannelAction,
+func (channel *Channel) handlePart(action protocol.ChannelAction,
 	message protocol.PartMessage) {
 	leavingUser := channel.getUserByNick(action.OriginNick)
 	channel.removeUser(leavingUser)
@@ -140,7 +133,7 @@ func (channel *Channel) handlePart(action ChannelAction,
 	leavingUser.conn.Send(serialized)
 }
 
-func (channel *Channel) handlePrivateMessage(action ChannelAction,
+func (channel *Channel) handlePrivateMessage(action protocol.ChannelAction,
 	message protocol.PrivateMessage) {
 	serialized := protocol.GetSerializedMessageFrom(action.OriginHostMask,
 		message)
@@ -154,7 +147,7 @@ func (channel *Channel) handlePrivateMessage(action ChannelAction,
 	}
 }
 
-func (channel *Channel) handleQuit(action ChannelAction,
+func (channel *Channel) handleQuit(action protocol.ChannelAction,
 	message protocol.QuitMessage) {
 	quitingUser := channel.getUserByNick(action.OriginNick)
 	if quitingUser == nil {
