@@ -152,7 +152,7 @@ func main() {
 	s := server.NewServer("test.server.example.org")
 	go s.Serve()
 
-	n := 200
+	n := 300
 
 	done := make(chan bool, n+1)
 	checkpoint1 := make(chan bool, n)
