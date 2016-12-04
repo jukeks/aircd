@@ -1,11 +1,11 @@
 package server
 
 import (
-	"channeld/protocol"
-	"channeld/config"
 	"channeld/channel"
-	"log"
+	"channeld/config"
+	"channeld/protocol"
 	"fmt"
+	"log"
 )
 
 func (server *Server) nickAvailable(nick string) bool {
@@ -47,7 +47,7 @@ func (server *Server) handleNewUser(
 	userMsg := action.UserMessage
 	if server.nickAvailable(nickMsg.Nick) {
 		user := NewUser(nickMsg.Nick, userMsg.Username, userMsg.Realname,
-						action.Hostname, action.Conn)
+			action.Hostname, action.Conn)
 		server.addUser(action.Conn, user)
 		server.sendMotd(action.Conn, user.nick)
 		action.Conn.SendMessage(protocol.PingMessage{"12345"})

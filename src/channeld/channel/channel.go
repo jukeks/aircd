@@ -4,8 +4,8 @@ import (
 	"channeld/config"
 	"channeld/protocol"
 
-	"log"
 	"fmt"
+	"log"
 )
 
 type Channel struct {

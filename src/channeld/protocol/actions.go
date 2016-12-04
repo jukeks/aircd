@@ -21,9 +21,9 @@ type ConnectionInitiationAction struct {
 }
 
 type ConnectionInitiationActionResponse struct {
-	Success bool
+	Success   bool
 	ErrorCode ConnectionInitiationError
-	Reply IrcMessage
+	Reply     IrcMessage
 }
 
 type ChannelAction struct {
@@ -32,4 +32,3 @@ type ChannelAction struct {
 	OriginConn     *IrcConnection
 	Message        IrcMessage
 }
-

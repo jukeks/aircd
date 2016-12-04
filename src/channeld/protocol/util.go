@@ -1,10 +1,10 @@
 package protocol
 
 import (
-	"fmt"
-	"strings"
-	"net"
 	"bufio"
+	"fmt"
+	"net"
+	"strings"
 	"time"
 )
 

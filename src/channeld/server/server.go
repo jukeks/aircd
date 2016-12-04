@@ -1,9 +1,9 @@
 package server
 
 import (
+	"channeld/channel"
 	"channeld/config"
 	"channeld/protocol"
-	"channeld/channel"
 
 	"log"
 	"net"
@@ -11,11 +11,11 @@ import (
 )
 
 type Server struct {
-	channels   map[string]*channel.Channel
-	users      map[*protocol.IrcConnection]*User
-	incoming   chan protocol.ClientAction
-	newUsers   chan protocol.ConnectionInitiationAction
-	quit       chan bool
+	channels map[string]*channel.Channel
+	users    map[*protocol.IrcConnection]*User
+	incoming chan protocol.ClientAction
+	newUsers chan protocol.ConnectionInitiationAction
+	quit     chan bool
 }
 
 func NewServer(id string) *Server {

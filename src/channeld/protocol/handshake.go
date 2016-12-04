@@ -5,14 +5,14 @@ import (
 )
 
 type handshake struct {
-	hostname string
-	nickMessage NickMessage
-	userMessage UserMessage
+	hostname     string
+	nickMessage  NickMessage
+	userMessage  UserMessage
 	nickReceived bool
 	userReceived bool
 	messagesRead int
-	nickRetries int
-	newClients chan ConnectionInitiationAction
+	nickRetries  int
+	newClients   chan ConnectionInitiationAction
 	responseChan chan ConnectionInitiationActionResponse
 
 	conn *IrcConnection

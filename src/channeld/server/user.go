@@ -11,7 +11,7 @@ type User struct {
 	realname string
 	hostname string
 
-	conn     *protocol.IrcConnection
+	conn *protocol.IrcConnection
 }
 
 func NewUser(nick, username, realname, hostname string,

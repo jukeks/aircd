@@ -180,4 +180,3 @@ func (m NumericMessage) Serialize() string {
 	return fmt.Sprintf(":%s %d * %s :%s", m.Source, m.Code, m.Target,
 		m.Message)
 }
-
