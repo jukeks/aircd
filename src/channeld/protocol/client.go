@@ -100,15 +100,14 @@ func (conn *IrcConnection) SendMessageFrom(from string, message IrcMessage) {
 /*----------------------------------------------------------------------------*/
 
 func (conn *IrcConnection) checkCounter() bool {
-	conn.messageCounter += 1
-
-	if conn.messageCounter > 10 {
-		return false
-	}
-
 	if time.Now().After(conn.counterReseted.Add(10 * time.Second)) {
 		conn.messageCounter = 0
 		conn.counterReseted = time.Now()
+	}
+
+	conn.messageCounter += 1
+	if conn.messageCounter > 10 {
+		return false
 	}
 
 	return true
