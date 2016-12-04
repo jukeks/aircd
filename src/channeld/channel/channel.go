@@ -63,6 +63,9 @@ func (channel *Channel) handleMessage(action ChannelAction) {
 	case protocol.PART:
 		msg := action.Message.(protocol.PartMessage)
 		channel.handlePart(action, msg)
+	case protocol.QUIT:
+		msg := action.Message.(protocol.QuitMessage)
+		channel.handleQuit(action, msg)
 	default:
 		log.Printf("Channel message not implemented: %v", action)
 	}
@@ -147,6 +150,23 @@ func (channel *Channel) handlePrivateMessage(action ChannelAction,
 			continue
 		}
 
+		user.conn.Send(serialized)
+	}
+}
+
+func (channel *Channel) handleQuit(action ChannelAction,
+	message protocol.QuitMessage) {
+	quitingUser := channel.getUserByNick(action.OriginNick)
+	if quitingUser == nil {
+		return
+	}
+
+	channel.removeUser(quitingUser)
+
+	serialized := protocol.GetSerializedMessageFrom(action.OriginHostMask,
+		message)
+
+	for _, user := range channel.users {
 		user.conn.Send(serialized)
 	}
 }

@@ -71,7 +71,7 @@ func (server *Server) handleMessage(action protocol.ClientAction) {
 	}
 
 	if message == nil {
-		server.removeUser(conn, user)
+		server.removeUser(conn, user, "EOF from client.")
 		log.Printf("%s has quit.", user.nick)
 		return
 	}
@@ -94,11 +94,11 @@ func (server *Server) handleMessage(action protocol.ClientAction) {
 		//user.lastPong = time.Now()
 	case protocol.NICK:
 		msg := message.(protocol.NickMessage)
-		server.handleNickChange(user, msg.Nick)
+		server.handleNickChange(user, msg)
 	case protocol.USER:
 		log.Printf("")
 	case protocol.QUIT:
-		server.removeUser(conn, user)
+		server.removeUser(conn, user, "Leaving")
 		log.Printf("%s has quit.", user.nick)
 	default:
 		log.Printf("%s sent unknown message: %s", user.nick,
@@ -123,19 +123,24 @@ func (server *Server) handleChannelMessage(user *User,
 		user.conn, msg}
 }
 
-func (server *Server) handleNickChange(user *User, nick string) {
-	if !server.nickAvailable(nick) {
-		log.Printf("Nick %s already in use", nick)
+func (server *Server) handleNickChange(user *User,
+	message protocol.NickMessage) {
+	if !server.nickAvailable(message.Nick) {
+		log.Printf("Nick %s already in use", message.Nick)
 		id := config.Config.ServerID
-		msg := protocol.NumericMessage{id, 433, nick,
+		msg := protocol.NumericMessage{id, 433, message.Nick,
 			"Nick name is already in use."}
 		user.conn.SendMessage(msg)
 		return
 	}
 
-	log.Printf("%s changed nick to %s", user.nick, nick)
-	user.nick = nick
-	// TODO HANDLE CHANNELS
+	for _, c := range server.channels {
+		c.Incoming <- channel.ChannelAction{user.hostmask(), user.nick,
+			user.conn, message}
+	}
+
+	log.Printf("%s changed nick to %s", user.nick, message.Nick)
+	user.nick = message.Nick
 }
 
 func (server *Server) addUser(conn *protocol.IrcConnection, user *User) {
@@ -144,13 +149,14 @@ func (server *Server) addUser(conn *protocol.IrcConnection, user *User) {
 	log.Printf("Server has %d users", len(server.users))
 }
 
-func (server *Server) removeUser(conn *protocol.IrcConnection, user *User) {
+func (server *Server) removeUser(conn *protocol.IrcConnection, user *User,
+	reason string) {
 	user.close()
 
-	/* TODO FIX
 	for _, c := range server.channels {
-		//c.removeUser(user)
-	}*/
+		c.Incoming <- channel.ChannelAction{user.hostmask(), user.nick,
+			user.conn, protocol.QuitMessage{reason}}
+	}
 
 	delete(server.users, conn)
 }
