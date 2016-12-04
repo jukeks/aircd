@@ -193,7 +193,7 @@ func (conn *IrcConnection) Serve(newClients chan ConnectionInitiationAction) {
 
 		message, err := conn.readMessage()
 		if err != nil {
-			log.Printf("%v read failed: %v", conn, err)
+			log.Printf("read failed: %v", err)
 			conn.incoming <- ClientAction{conn, nil}
 			return
 		}
@@ -228,6 +228,8 @@ func (conn *IrcConnection) write(message string) {
 		conn.incoming <- ClientAction{conn, nil}
 		return
 	}
+
+	log.Printf("Wrote: %s", message)
 }
 
 func (conn *IrcConnection) readMessage() (IrcMessage, error) {
