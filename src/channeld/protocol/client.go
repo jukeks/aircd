@@ -32,6 +32,7 @@ type ConnectionInitiationAction struct {
 type ConnectionInitiationActionResponse struct {
 	Success bool
 	ErrorCode ConnectionInitiationError
+	Reply IrcMessage
 }
 
 type IrcConnection struct {
@@ -133,42 +134,49 @@ func (conn *IrcConnection) handshake(
 	nickReceived := false
 	userReceived := false
 	messagesRead := 0
+	nickRetries := 0
 
-	for (!nickReceived || !userReceived) && messagesRead < 4 {
-		select {
-		case <-conn.quit:
-			return false
-		default:
+	for nickRetries < 3 {
+		for (!nickReceived || !userReceived) && messagesRead < 4 {
+			select {
+			case <-conn.quit:
+				return false
+			default:
+			}
+
+			message, err := conn.readMessage()
+			if err != nil {
+				log.Printf("%v read failed: %v", conn, err)
+				return false
+			}
+			messagesRead += 1
+
+			if message.GetType() == USER {
+				userMessage = message.(UserMessage)
+				userReceived = true
+			} else if message.GetType() == NICK {
+				nickMessage = message.(NickMessage)
+				nickReceived = true
+			}
 		}
 
-		message, err := conn.readMessage()
-		if err != nil {
-			log.Printf("%v read failed: %v", conn, err)
-			return false
-		}
-		messagesRead += 1
+		if nickReceived && userReceived {
+			responseChan := make(chan ConnectionInitiationActionResponse, 1)
 
-		if message.GetType() == USER {
-			userMessage = message.(UserMessage)
-			nickReceived = true
-		} else if message.GetType() == NICK {
-			nickMessage = message.(NickMessage)
-			userReceived = true
-		}
-	}
+			newClients <- ConnectionInitiationAction{userMessage, nickMessage,
+				hostname, conn, responseChan}
+			response := <-responseChan
 
-	if nickReceived && userReceived {
-		responseChan := make(chan ConnectionInitiationActionResponse, 1)
-		// blocking
-		newClients <- ConnectionInitiationAction{userMessage, nickMessage,
-			hostname, conn, responseChan}
-		response := <-responseChan
-		// todo retry!
-		if !response.Success {
-			return false
-		}
+			if !response.Success {
+				conn.write(response.Reply.Serialize())
+				nickReceived = false
+				messagesRead = 0
+				nickRetries += 1
+				continue
+			}
 
-		return true
+			return true
+		}
 	}
 
 	return false

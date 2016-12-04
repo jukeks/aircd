@@ -53,10 +53,13 @@ func (server *Server) handleNewUser(
 		action.Conn.SendMessage(protocol.PingMessage{"12345"})
 
 		action.ResponseChan <- protocol.ConnectionInitiationActionResponse{true,
-			protocol.NO_ERROR}
+			protocol.NO_ERROR, nil}
 	} else {
+		id := config.Config.ServerID
+		reply := protocol.NumericMessage{id, 433, nickMsg.Nick,
+			"Nickname is already in use."}
 		action.ResponseChan <- protocol.ConnectionInitiationActionResponse{false,
-			protocol.NICK_IN_USE}
+			protocol.NICK_IN_USE, reply}
 	}
 }
 
