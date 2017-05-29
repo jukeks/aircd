@@ -1,12 +1,12 @@
 package main
 
 import (
+	"github.com/jukeks/channeld/server"
+
 	"log"
 
 	"net/http"
 	_ "net/http/pprof"
-
-	"channeld/server"
 )
 
 var logger *log.Logger

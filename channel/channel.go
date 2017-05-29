@@ -1,8 +1,8 @@
 package channel
 
 import (
-	"channeld/config"
-	"channeld/protocol"
+	"github.com/jukeks/channeld/config"
+	"github.com/jukeks/channeld/protocol"
 
 	"fmt"
 	"log"

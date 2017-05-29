@@ -1,9 +1,10 @@
 package main
 
 import (
+	"github.com/jukeks/channeld/protocol"
+	"github.com/jukeks/channeld/server"
+
 	"bufio"
-	"channeld/protocol"
-	"channeld/server"
 	"fmt"
 	"io/ioutil"
 	"log"

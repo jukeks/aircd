@@ -1,9 +1,9 @@
 package server
 
 import (
-	"channeld/channel"
-	"channeld/config"
-	"channeld/protocol"
+	"github.com/jukeks/channeld/channel"
+	"github.com/jukeks/channeld/config"
+	"github.com/jukeks/channeld/protocol"
 
 	"log"
 	"net"

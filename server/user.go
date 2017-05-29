@@ -1,7 +1,8 @@
 package server
 
 import (
-	"channeld/protocol"
+	"github.com/jukeks/channeld/protocol"
+
 	"fmt"
 )
 
